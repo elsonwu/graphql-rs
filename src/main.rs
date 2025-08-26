@@ -3,7 +3,6 @@
 //! This binary demonstrates the GraphQL server functionality and can be used
 //! for development and testing.
 
-use graphql_rs::GraphQLServer;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 

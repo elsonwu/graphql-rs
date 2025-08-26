@@ -3,7 +3,8 @@
 //! Events represent things that have happened in the domain and can trigger
 //! side effects or cross-cutting concerns.
 
-use crate::domain::entities::{SchemaId, QueryId};
+use crate::domain::entities::ids::{QueryId, SchemaId};
+use crate::domain::value_objects::GraphQLError;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -30,10 +31,10 @@ impl Default for EventId {
 pub trait DomainEvent {
     /// Get the unique identifier for this event
     fn event_id(&self) -> &EventId;
-    
+
     /// Get the timestamp when this event occurred
     fn timestamp(&self) -> DateTime<Utc>;
-    
+
     /// Get the type name of this event
     fn event_type(&self) -> &'static str;
 }
@@ -49,22 +50,22 @@ pub enum QueryEvent {
         query_string: String,
         operation_name: Option<String>,
     },
-    
+
     /// A query passed validation
     QueryValidated {
         event_id: EventId,
         timestamp: DateTime<Utc>,
         query_id: QueryId,
     },
-    
+
     /// A query failed validation
     QueryValidationFailed {
         event_id: EventId,
         timestamp: DateTime<Utc>,
         query_id: QueryId,
-        errors: Vec<String>,
+        errors: Vec<GraphQLError>,
     },
-    
+
     /// A query started execution
     QueryExecutionStarted {
         event_id: EventId,
@@ -72,7 +73,7 @@ pub enum QueryEvent {
         query_id: QueryId,
         schema_id: SchemaId,
     },
-    
+
     /// A query completed execution successfully
     QueryExecutionCompleted {
         event_id: EventId,
@@ -82,7 +83,7 @@ pub enum QueryEvent {
         field_count: usize,
         result_size_bytes: usize,
     },
-    
+
     /// A query execution failed with an error
     QueryExecutionFailed {
         event_id: EventId,
@@ -104,7 +105,7 @@ impl DomainEvent for QueryEvent {
             | QueryEvent::QueryExecutionFailed { event_id, .. } => event_id,
         }
     }
-    
+
     fn timestamp(&self) -> DateTime<Utc> {
         match self {
             QueryEvent::QueryReceived { timestamp, .. }
@@ -115,7 +116,7 @@ impl DomainEvent for QueryEvent {
             | QueryEvent::QueryExecutionFailed { timestamp, .. } => *timestamp,
         }
     }
-    
+
     fn event_type(&self) -> &'static str {
         match self {
             QueryEvent::QueryReceived { .. } => "QueryReceived",
@@ -138,7 +139,7 @@ pub enum SchemaEvent {
         schema_id: SchemaId,
         version: String,
     },
-    
+
     /// A schema was updated
     SchemaUpdated {
         event_id: EventId,
@@ -148,22 +149,22 @@ pub enum SchemaEvent {
         new_version: String,
         changes_summary: String,
     },
-    
+
     /// A schema was validated
     SchemaValidated {
         event_id: EventId,
         timestamp: DateTime<Utc>,
         schema_id: SchemaId,
     },
-    
+
     /// A schema failed validation
     SchemaValidationFailed {
         event_id: EventId,
         timestamp: DateTime<Utc>,
         schema_id: SchemaId,
-        errors: Vec<String>,
+        errors: Vec<GraphQLError>,
     },
-    
+
     /// A schema was deleted
     SchemaDeleted {
         event_id: EventId,
@@ -182,7 +183,7 @@ impl DomainEvent for SchemaEvent {
             | SchemaEvent::SchemaDeleted { event_id, .. } => event_id,
         }
     }
-    
+
     fn timestamp(&self) -> DateTime<Utc> {
         match self {
             SchemaEvent::SchemaCreated { timestamp, .. }
@@ -192,7 +193,7 @@ impl DomainEvent for SchemaEvent {
             | SchemaEvent::SchemaDeleted { timestamp, .. } => *timestamp,
         }
     }
-    
+
     fn event_type(&self) -> &'static str {
         match self {
             SchemaEvent::SchemaCreated { .. } => "SchemaCreated",
@@ -218,14 +219,14 @@ impl DomainEvent for GraphQLEvent {
             GraphQLEvent::Schema(event) => event.event_id(),
         }
     }
-    
+
     fn timestamp(&self) -> DateTime<Utc> {
         match self {
             GraphQLEvent::Query(event) => event.timestamp(),
             GraphQLEvent::Schema(event) => event.timestamp(),
         }
     }
-    
+
     fn event_type(&self) -> &'static str {
         match self {
             GraphQLEvent::Query(event) => event.event_type(),
@@ -252,13 +253,13 @@ impl InMemoryEventPublisher {
             events: std::sync::Arc::new(tokio::sync::RwLock::new(Vec::new())),
         }
     }
-    
+
     /// Get all published events (for testing)
     pub async fn get_events(&self) -> Vec<GraphQLEvent> {
         let events = self.events.read().await;
         events.clone()
     }
-    
+
     /// Clear all events (for testing)
     pub async fn clear_events(&self) {
         let mut events = self.events.write().await;
@@ -285,8 +286,8 @@ impl EventPublisher for InMemoryEventPublisher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::entities::{SchemaId, QueryId};
-    
+    use crate::domain::entities::ids::{QueryId, SchemaId};
+
     #[test]
     fn test_query_event_creation() {
         let query_id = QueryId::new();
@@ -297,11 +298,11 @@ mod tests {
             query_string: "{ test }".to_string(),
             operation_name: None,
         };
-        
+
         assert_eq!(event.event_type(), "QueryReceived");
         assert!(event.timestamp() <= Utc::now());
     }
-    
+
     #[test]
     fn test_schema_event_creation() {
         let schema_id = SchemaId::new();
@@ -311,16 +312,16 @@ mod tests {
             schema_id: schema_id.clone(),
             version: "1.0".to_string(),
         };
-        
+
         assert_eq!(event.event_type(), "SchemaCreated");
         assert!(event.timestamp() <= Utc::now());
     }
-    
+
     #[tokio::test]
     async fn test_in_memory_event_publisher() {
         let publisher = InMemoryEventPublisher::new();
         let query_id = QueryId::new();
-        
+
         let event = GraphQLEvent::Query(QueryEvent::QueryReceived {
             event_id: EventId::new(),
             timestamp: Utc::now(),
@@ -328,12 +329,12 @@ mod tests {
             query_string: "{ test }".to_string(),
             operation_name: None,
         });
-        
+
         publisher.publish(event.clone());
-        
+
         // Give some time for the async task to complete
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-        
+
         let events = publisher.get_events().await;
         assert_eq!(events.len(), 1);
     }

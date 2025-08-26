@@ -3,6 +3,8 @@
 //! This layer handles external dependencies like HTTP, persistence, and third-party integrations.
 
 pub mod http;
+pub mod lexer;
+pub mod parser;
 pub mod persistence;
 
 // Re-export main infrastructure components
