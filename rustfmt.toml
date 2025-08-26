@@ -1,0 +1,24 @@
+# Rust formatting configuration for graphql-rs
+# This ensures consistent code formatting across the project
+# Using only stable rustfmt options
+
+# Basic formatting options
+max_width = 100
+hard_tabs = false
+tab_spaces = 4
+
+# Function formatting - using stable option name
+fn_params_layout = "Tall"
+
+# String formatting
+use_small_heuristics = "Default"
+
+# Error handling
+use_try_shorthand = true
+
+# Match formatting
+match_block_trailing_comma = true
+
+# Miscellaneous formatting
+newline_style = "Unix"
+remove_nested_parens = true
