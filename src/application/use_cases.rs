@@ -92,14 +92,14 @@ where
                         "No schema available".to_string(),
                     ),
                 ]);
-            }
+            },
             Err(_) => {
                 return ExecutionResult::error(vec![
                     crate::domain::value_objects::GraphQLError::new(
                         "Failed to load schema".to_string(),
                     ),
                 ]);
-            }
+            },
         };
 
         // Validate query
@@ -114,7 +114,7 @@ where
                         timestamp: Utc::now(),
                         query_id: query.id().clone(),
                     }));
-            }
+            },
             ValidationResult::Invalid(errors) => {
                 self.event_publisher.publish(GraphQLEvent::Query(
                     QueryEvent::QueryValidationFailed {
@@ -126,14 +126,14 @@ where
                 ));
 
                 return ExecutionResult::error(errors);
-            }
+            },
             ValidationResult::Pending => {
                 return ExecutionResult::error(vec![
                     crate::domain::value_objects::GraphQLError::new(
                         "Query validation is pending".to_string(),
                     ),
                 ]);
-            }
+            },
         }
 
         // Execute query
@@ -167,7 +167,7 @@ where
                         result_size_bytes: serde_json::to_string(&result).unwrap_or_default().len(),
                     },
                 ));
-            }
+            },
             _ => {
                 self.event_publisher.publish(GraphQLEvent::Query(
                     QueryEvent::QueryExecutionFailed {
@@ -178,7 +178,7 @@ where
                         error: "Query execution failed".to_string(),
                     },
                 ));
-            }
+            },
         }
 
         result
@@ -239,7 +239,7 @@ where
                 }
 
                 Ok(())
-            }
+            },
             ValidationResult::Invalid(errors) => {
                 self.event_publisher.publish(GraphQLEvent::Schema(
                     SchemaEvent::SchemaValidationFailed {
@@ -256,7 +256,7 @@ where
                     "Schema validation failed: {}",
                     error_messages.join(", ")
                 ))
-            }
+            },
             ValidationResult::Pending => Err("Schema validation is pending".to_string()),
         }
     }

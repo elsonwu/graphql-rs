@@ -117,21 +117,21 @@ impl<'input> Parser<'input> {
                                 position: self.lexer.position(),
                                 message: format!("Unknown operation type: {}", operation_type),
                             })
-                        }
+                        },
                     }
-                }
+                },
                 Some(token) => {
                     return Err(ParseError::UnexpectedToken {
                         expected: "operation type".to_string(),
                         found: format!("{}", token),
                         position: self.lexer.position(),
                     })
-                }
+                },
                 None => {
                     return Err(ParseError::UnexpectedEof {
                         expected: "operation type or '}'".to_string(),
                     })
-                }
+                },
             }
         }
 
@@ -473,11 +473,11 @@ impl<'input> Parser<'input> {
                             position: self.lexer.position(),
                             message: format!("Unknown directive location: {}", name),
                         })
-                    }
+                    },
                 };
                 self.lexer.advance();
                 Ok(location)
-            }
+            },
             Some(token) => Err(ParseError::UnexpectedToken {
                 expected: "directive location".to_string(),
                 found: format!("{}", token),
@@ -553,7 +553,7 @@ impl<'input> Parser<'input> {
                 let result = name.clone();
                 self.lexer.advance();
                 Ok(result)
-            }
+            },
             Some(token) => Err(ParseError::UnexpectedToken {
                 expected: "name".to_string(),
                 found: format!("{}", token),
@@ -572,34 +572,34 @@ impl<'input> Parser<'input> {
                 let result = Value::String(s.clone());
                 self.lexer.advance();
                 Ok(result)
-            }
+            },
             Some(Token::Integer(i)) => {
                 let result = Value::Int(*i);
                 self.lexer.advance();
                 Ok(result)
-            }
+            },
             Some(Token::Float(f)) => {
                 let result = Value::Float(*f);
                 self.lexer.advance();
                 Ok(result)
-            }
+            },
             Some(Token::True) => {
                 self.lexer.advance();
                 Ok(Value::Boolean(true))
-            }
+            },
             Some(Token::False) => {
                 self.lexer.advance();
                 Ok(Value::Boolean(false))
-            }
+            },
             Some(Token::Null) => {
                 self.lexer.advance();
                 Ok(Value::Null)
-            }
+            },
             Some(Token::Name(name)) => {
                 let result = Value::Enum(name.clone());
                 self.lexer.advance();
                 Ok(result)
-            }
+            },
             Some(Token::LeftBracket) => self.parse_list_value(),
             Some(Token::LeftBrace) => self.parse_object_value(),
             Some(token) => Err(ParseError::UnexpectedToken {
@@ -655,12 +655,12 @@ impl<'input> Parser<'input> {
             match self.lexer.current_token() {
                 Some(Token::LeftParen) => depth += 1,
                 Some(Token::RightParen) => depth -= 1,
-                Some(_) => {}
+                Some(_) => {},
                 None => {
                     return Err(ParseError::UnexpectedEof {
                         expected: "')' to close arguments".to_string(),
                     })
-                }
+                },
             }
             self.lexer.advance();
         }
@@ -705,7 +705,7 @@ impl SchemaBuilder {
                 self.query_type = Some(schema_def.query_type);
                 self.mutation_type = schema_def.mutation_type;
                 self.subscription_type = schema_def.subscription_type;
-            }
+            },
             TypeSystemDefinition::Type(type_def) => {
                 let graphql_type = match type_def {
                     TypeDefinition::Scalar(scalar) => GraphQLType::Scalar(scalar),
@@ -715,17 +715,17 @@ impl SchemaBuilder {
                     TypeDefinition::Enum(enum_type) => GraphQLType::Enum(enum_type),
                     TypeDefinition::InputObject(input_object) => {
                         GraphQLType::InputObject(input_object)
-                    }
+                    },
                 };
 
                 if let Some(name) = graphql_type.name() {
                     self.types.insert(name.to_string(), graphql_type);
                 }
-            }
+            },
             TypeSystemDefinition::Directive(directive) => {
                 let name = directive.name.clone();
                 self.directives.insert(name, directive);
-            }
+            },
         }
         Ok(())
     }
@@ -803,7 +803,7 @@ mod tests {
         match result.unwrap() {
             TypeSystemDefinition::Type(TypeDefinition::Scalar(ScalarType::Custom(name))) => {
                 assert_eq!(name, "DateTime");
-            }
+            },
             _ => panic!("Expected scalar type definition"),
         }
     }
@@ -828,7 +828,7 @@ mod tests {
                 assert!(obj.fields.contains_key("id"));
                 assert!(obj.fields.contains_key("name"));
                 assert!(obj.fields.contains_key("age"));
-            }
+            },
             _ => panic!("Expected object type definition"),
         }
     }
@@ -853,7 +853,7 @@ mod tests {
                 assert!(enum_type.values.contains_key("ACTIVE"));
                 assert!(enum_type.values.contains_key("INACTIVE"));
                 assert!(enum_type.values.contains_key("PENDING"));
-            }
+            },
             _ => panic!("Expected enum type definition"),
         }
     }
@@ -873,7 +873,7 @@ mod tests {
                 assert!(union_type.types.contains(&"User".to_string()));
                 assert!(union_type.types.contains(&"Post".to_string()));
                 assert!(union_type.types.contains(&"Comment".to_string()));
-            }
+            },
             _ => panic!("Expected union type definition"),
         }
     }
@@ -896,7 +896,7 @@ mod tests {
                 assert_eq!(schema_def.query_type, "Query");
                 assert_eq!(schema_def.mutation_type, Some("Mutation".to_string()));
                 assert!(schema_def.subscription_type.is_none());
-            }
+            },
             _ => panic!("Expected schema definition"),
         }
     }

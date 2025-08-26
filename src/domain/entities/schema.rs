@@ -220,7 +220,7 @@ impl Schema {
                     if obj.interfaces.contains(&interface_name.to_string()) =>
                 {
                     Some(obj)
-                }
+                },
                 _ => None,
             })
             .collect()
@@ -339,7 +339,7 @@ impl Schema {
     fn validate_root_types(&self) -> Result<(), SchemaError> {
         // Validate Query root type
         match self.get_type(&self.query_type) {
-            Some(GraphQLType::Object(_)) => {}
+            Some(GraphQLType::Object(_)) => {},
             Some(_) => return Err(SchemaError::InvalidRootType(self.query_type.clone())),
             None => return Err(SchemaError::TypeNotFound(self.query_type.clone())),
         }
@@ -347,7 +347,7 @@ impl Schema {
         // Validate Mutation root type if specified
         if let Some(ref mutation_type_name) = self.mutation_type {
             match self.get_type(mutation_type_name) {
-                Some(GraphQLType::Object(_)) => {}
+                Some(GraphQLType::Object(_)) => {},
                 Some(_) => return Err(SchemaError::InvalidRootType(mutation_type_name.clone())),
                 None => return Err(SchemaError::TypeNotFound(mutation_type_name.clone())),
             }
@@ -356,10 +356,10 @@ impl Schema {
         // Validate Subscription root type if specified
         if let Some(ref subscription_type_name) = self.subscription_type {
             match self.get_type(subscription_type_name) {
-                Some(GraphQLType::Object(_)) => {}
+                Some(GraphQLType::Object(_)) => {},
                 Some(_) => {
                     return Err(SchemaError::InvalidRootType(subscription_type_name.clone()))
-                }
+                },
                 None => return Err(SchemaError::TypeNotFound(subscription_type_name.clone())),
             }
         }
@@ -376,28 +376,28 @@ impl Schema {
                 if let Err(mut obj_errors) = self.validate_object_type(obj) {
                     errors.append(&mut obj_errors);
                 }
-            }
+            },
             GraphQLType::Interface(interface) => {
                 if let Err(mut interface_errors) = self.validate_interface_type(interface) {
                     errors.append(&mut interface_errors);
                 }
-            }
+            },
             GraphQLType::Union(union) => {
                 if let Err(mut union_errors) = self.validate_union_type(union) {
                     errors.append(&mut union_errors);
                 }
-            }
+            },
             GraphQLType::Enum(enum_type) => {
                 if let Err(mut enum_errors) = self.validate_enum_type(enum_type) {
                     errors.append(&mut enum_errors);
                 }
-            }
+            },
             GraphQLType::InputObject(input) => {
                 if let Err(mut input_errors) = self.validate_input_object_type(input) {
                     errors.append(&mut input_errors);
                 }
-            }
-            _ => {} // Scalar types are always valid
+            },
+            _ => {}, // Scalar types are always valid
         }
 
         if errors.is_empty() {
@@ -480,17 +480,17 @@ impl Schema {
 
         for member_name in &union.types {
             match self.get_type(member_name) {
-                Some(GraphQLType::Object(_)) => {} // Valid
+                Some(GraphQLType::Object(_)) => {}, // Valid
                 Some(_) => {
                     errors.push(SchemaError::InvalidUnionMember {
                         union: union.name.clone(),
                         member: member_name.clone(),
                         reason: "Union members must be Object types".to_string(),
                     });
-                }
+                },
                 None => {
                     errors.push(SchemaError::TypeNotFound(member_name.clone()));
-                }
+                },
             }
         }
 
@@ -551,14 +551,14 @@ impl Schema {
                             ),
                         });
                     }
-                }
+                },
                 None => {
                     return Err(SchemaError::InvalidInterfaceImplementation {
                         interface: interface.name.clone(),
                         implementor: obj.name.clone(),
                         reason: format!("Missing field '{}'", field_name),
                     });
-                }
+                },
             }
         }
 
@@ -617,8 +617,8 @@ impl Schema {
                             }
                         }
                     }
-                }
-                _ => {} // Other types handled similarly
+                },
+                _ => {}, // Other types handled similarly
             }
         }
 

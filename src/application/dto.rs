@@ -229,10 +229,10 @@ impl From<crate::domain::value_objects::GraphQLError> for GraphQLErrorDto {
                 .map(|segment| match segment {
                     crate::domain::value_objects::PathSegment::Field(field) => {
                         PathSegmentDto::Field(field)
-                    }
+                    },
                     crate::domain::value_objects::PathSegment::Index(index) => {
                         PathSegmentDto::Index(index)
-                    }
+                    },
                 })
                 .collect()
         });

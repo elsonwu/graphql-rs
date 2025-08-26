@@ -94,7 +94,7 @@ impl SchemaService {
             Err(errors) => {
                 let error_messages: Vec<String> = errors.iter().map(|e| format!("{}", e)).collect();
                 Ok(error_messages)
-            }
+            },
         }
     }
 
@@ -431,18 +431,18 @@ impl SchemaStats {
                 GraphQLType::Object(obj) => {
                     stats.object_types += 1;
                     stats.total_fields += obj.fields.len();
-                }
+                },
                 GraphQLType::Interface(interface) => {
                     stats.interface_types += 1;
                     stats.total_fields += interface.fields.len();
-                }
+                },
                 GraphQLType::Union(_) => stats.union_types += 1,
                 GraphQLType::Enum(_) => stats.enum_types += 1,
                 GraphQLType::InputObject(input) => {
                     stats.input_types += 1;
                     stats.total_fields += input.fields.len();
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
 

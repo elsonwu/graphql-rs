@@ -233,7 +233,7 @@ impl<'input> Lexer<'input> {
             Some(token) if std::mem::discriminant(token) == std::mem::discriminant(expected) => {
                 self.advance();
                 Ok(())
-            }
+            },
             Some(token) => Err(LexError::UnexpectedToken {
                 expected: format!("{}", expected),
                 found: format!("{}", token),
@@ -292,13 +292,13 @@ impl fmt::Display for LexError {
                     "Expected {} but found {} at position {}",
                     expected, found, position
                 )
-            }
+            },
             LexError::UnexpectedEof { expected } => {
                 write!(f, "Unexpected end of input, expected {}", expected)
-            }
+            },
             LexError::InvalidToken { position } => {
                 write!(f, "Invalid token at position {}", position)
-            }
+            },
         }
     }
 }
@@ -369,12 +369,12 @@ fn process_string_escapes(input: &str) -> String {
                             result.push(unicode_char);
                         }
                     }
-                }
+                },
                 Some(escaped) => {
                     // Unknown escape, keep as-is
                     result.push('\\');
                     result.push(escaped);
-                }
+                },
                 None => result.push('\\'),
             }
         } else {
