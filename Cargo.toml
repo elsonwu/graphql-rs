@@ -27,9 +27,11 @@ anyhow = "1.0"
 
 # Parsing and lexing
 nom = "7.1"
+logos = "0.13"
 
 # Collections
 indexmap = { version = "2.0", features = ["serde"] }
+dashmap = "5.5"
 
 # Async utilities
 futures = "0.3"

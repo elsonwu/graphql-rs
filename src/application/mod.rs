@@ -5,6 +5,7 @@
 pub mod use_cases;
 pub mod services;
 pub mod dto;
+pub mod server;
 
 // Re-export main application components
-pub use services::GraphQLServer;
+// pub use server::GraphQLServer; // Will be implemented in later PRs

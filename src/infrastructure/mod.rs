@@ -4,6 +4,8 @@
 
 pub mod http;
 pub mod persistence;
+pub mod lexer;
+pub mod parser;
 
 // Re-export main infrastructure components
 // (These will be implemented in later PRs)

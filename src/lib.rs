@@ -1,6 +1,7 @@
 //! # GraphQL Server in Rust
 //!
-//! A comprehensive GraphQL server implementation built from scratch to understand
+//! A com// Re-export main components for easy access
+// pub use application::GraphQLServer; // Will be implemented in later PRsehensive GraphQL server implementation built from scratch to understand
 //! the core concepts and architecture of GraphQL.
 //!
 //! This implementation follows Domain-Driven Design (DDD) principles and implements
@@ -41,8 +42,8 @@ pub mod infrastructure;
 pub mod presentation;
 
 // Re-export main components for easier access
-pub use application::GraphQLServer;
-pub use domain::{Schema, Query, ExecutionResult};
+// pub use application::GraphQLServer; // Will be implemented in later PRs
+// pub use domain::{Schema, Query, ExecutionResult}; // Will be implemented in later PRs
 
 /// Current version of the GraphQL server
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

@@ -1,11 +1,10 @@
 //! Use cases representing application-level business operations
 
 use crate::domain::{
-    entities::{Schema, Query},
-    services::{QueryValidator, QueryExecutor, SchemaValidator, QueryExecution},
-    repositories::{SchemaRepository, QueryRepository},
-    value_objects::{ValidationResult, ExecutionResult},
-    events::{EventPublisher, GraphQLEvent, QueryEvent, SchemaEvent, EventId},
+    // entities::{Schema, Query}, // Will be implemented in later PRs
+    // repositories::{SchemaRepository, QueryRepository}, // Will be implemented in later PRs
+    // services::{QueryValidator, QueryExecutor, SchemaValidator}, // Will be implemented in later PRs
+    // value_objects::{ExecutionResult, ValidationResult}, // Will be implemented in later PRs
 };
 use chrono::Utc;
 use std::sync::Arc;
