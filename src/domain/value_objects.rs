@@ -132,7 +132,7 @@ impl TypeReference {
     }
 }
 
-/// Result of schema or query validation
+/// Result of validating a GraphQL schema or query
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValidationResult {
     /// Validation is pending
@@ -140,7 +140,7 @@ pub enum ValidationResult {
     /// Validation passed
     Valid,
     /// Validation failed with errors
-    Invalid(Vec<String>),
+    Invalid(Vec<GraphQLError>),
 }
 
 impl ValidationResult {
@@ -151,11 +151,11 @@ impl ValidationResult {
     
     /// Create an invalid result with a single error
     pub fn invalid(error: String) -> Self {
-        Self::Invalid(vec![error])
+        Self::Invalid(vec![GraphQLError::new(error)])
     }
     
     /// Create an invalid result with multiple errors
-    pub fn invalid_with_errors(errors: Vec<String>) -> Self {
+    pub fn invalid_with_errors(errors: Vec<GraphQLError>) -> Self {
         Self::Invalid(errors)
     }
     
@@ -213,7 +213,7 @@ impl ExecutionResult {
 }
 
 /// GraphQL error representation
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GraphQLError {
     /// Error message
     pub message: String,
@@ -229,14 +229,14 @@ pub struct GraphQLError {
 }
 
 /// Source location in the GraphQL query
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SourceLocation {
     pub line: u32,
     pub column: u32,
 }
 
 /// Path segment for error paths
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum PathSegment {
     Field(String),
@@ -252,6 +252,11 @@ impl GraphQLError {
             path: None,
             extensions: None,
         }
+    }
+    
+    /// Create a validation error
+    pub fn validation_error(message: String) -> Self {
+        Self::new(message)
     }
     
     /// Add a source location to the error

@@ -74,7 +74,7 @@ impl<'input> Parser<'input> {
     }
     
     /// Parse a single type system definition
-    fn parse_type_system_definition(&mut self) -> Result<TypeSystemDefinition, ParseError> {
+    pub fn parse_type_system_definition(&mut self) -> Result<TypeSystemDefinition, ParseError> {
         match self.lexer.current_token() {
             Some(Token::Schema) => self.parse_schema_definition(),
             Some(Token::Type) => self.parse_object_type_definition(),

@@ -1,10 +1,14 @@
-use crate::domain::entities::types::*;
+use crate::domain::entities::{types::*, ids::{SchemaId, SchemaVersion}};
 use std::collections::HashMap;
 use thiserror::Error;
 
 /// A complete GraphQL schema definition
 #[derive(Debug, Clone)]
 pub struct Schema {
+    /// Unique identifier for this schema
+    pub id: SchemaId,
+    /// Version of this schema
+    pub version: SchemaVersion,
     /// Query root type (required)
     pub query_type: String,
     /// Mutation root type (optional)
@@ -77,6 +81,28 @@ impl Schema {
     /// Create a new schema with the minimum required components
     pub fn new(query_type: String) -> Self {
         let mut schema = Self {
+            id: SchemaId::new(),
+            version: SchemaVersion::new("1.0.0"),
+            query_type,
+            mutation_type: None,
+            subscription_type: None,
+            types: HashMap::new(),
+            directives: HashMap::new(),
+            description: None,
+        };
+        
+        // Add built-in scalar types
+        schema.add_builtin_scalars();
+        schema.add_builtin_directives();
+        
+        schema
+    }
+    
+    /// Create a new schema with specific ID and version
+    pub fn with_id_and_version(id: SchemaId, version: SchemaVersion, query_type: String) -> Self {
+        let mut schema = Self {
+            id,
+            version,
             query_type,
             mutation_type: None,
             subscription_type: None,

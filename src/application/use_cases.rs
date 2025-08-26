@@ -1,10 +1,15 @@
 //! Use cases representing application-level business operations
 
 use crate::domain::{
-    // entities::{Schema, Query}, // Will be implemented in later PRs
-    // repositories::{SchemaRepository, QueryRepository}, // Will be implemented in later PRs
-    // services::{QueryValidator, QueryExecutor, SchemaValidator}, // Will be implemented in later PRs
-    // value_objects::{ExecutionResult, ValidationResult}, // Will be implemented in later PRs
+    entities::{
+        schema::Schema,
+        query::Query,
+        ids::{SchemaId, QueryId},
+    },
+    repositories::{SchemaRepository, QueryRepository},
+    services::{QueryValidator, QueryExecutor, SchemaValidator, QueryExecution},
+    value_objects::{ExecutionResult, ValidationResult, GraphQLError},
+    events::{EventPublisher, GraphQLEvent, QueryEvent, SchemaEvent, EventId},
 };
 use chrono::Utc;
 use std::sync::Arc;
@@ -52,20 +57,27 @@ where
         variables: std::collections::HashMap<String, serde_json::Value>,
     ) -> ExecutionResult {
         // Create query entity
-        let mut query = Query::new(query_string.clone())
-            .with_variables(variables);
+        let variables_value = if variables.is_empty() {
+            None
+        } else {
+            Some(serde_json::Value::Object(variables.into_iter()
+                .map(|(k, v)| (k, v))
+                .collect()))
+        };
         
-        if let Some(op_name) = operation_name {
-            query = query.with_operation_name(op_name);
-        }
+        let mut query = Query::new_with_params(
+            query_string.clone(),
+            variables_value,
+            operation_name,
+        );
         
-        // Publish query received event
+                // Publish query received event
         self.event_publisher.publish(GraphQLEvent::Query(QueryEvent::QueryReceived {
             event_id: EventId::new(),
             timestamp: Utc::now(),
-            query_id: query.id.clone(),
-            query_string: query_string.clone(),
-            operation_name: query.operation_name.clone(),
+            query_id: query.id().clone(),
+            query_string,
+            operation_name: query.operation_name().clone(),
         }));
         
         // Save query for analytics
@@ -101,22 +113,18 @@ where
                 self.event_publisher.publish(GraphQLEvent::Query(QueryEvent::QueryValidated {
                     event_id: EventId::new(),
                     timestamp: Utc::now(),
-                    query_id: query.id.clone(),
+                    query_id: query.id().clone(),
                 }));
             }
             ValidationResult::Invalid(errors) => {
                 self.event_publisher.publish(GraphQLEvent::Query(QueryEvent::QueryValidationFailed {
                     event_id: EventId::new(),
                     timestamp: Utc::now(),
-                    query_id: query.id.clone(),
+                    query_id: query.id().clone(),
                     errors: errors.clone(),
                 }));
-                
-                let graphql_errors = errors.into_iter()
-                    .map(|e| crate::domain::value_objects::GraphQLError::new(e))
-                    .collect();
                     
-                return ExecutionResult::error(graphql_errors);
+                return ExecutionResult::error(errors);
             }
             ValidationResult::Pending => {
                 return ExecutionResult::error(vec![
@@ -133,7 +141,7 @@ where
         self.event_publisher.publish(GraphQLEvent::Query(QueryEvent::QueryExecutionStarted {
             event_id: EventId::new(),
             timestamp: Utc::now(),
-            query_id: query.id.clone(),
+            query_id: query.id().clone(),
             schema_id: schema.id.clone(),
         }));
         
@@ -146,7 +154,7 @@ where
                 self.event_publisher.publish(GraphQLEvent::Query(QueryEvent::QueryExecutionCompleted {
                     event_id: EventId::new(),
                     timestamp: Utc::now(),
-                    query_id: query.id.clone(),
+                    query_id: query.id().clone(),
                     execution_time,
                     field_count: 1, // Placeholder - will be calculated properly later
                     result_size_bytes: serde_json::to_string(&result).unwrap_or_default().len(),
@@ -156,7 +164,7 @@ where
                 self.event_publisher.publish(GraphQLEvent::Query(QueryEvent::QueryExecutionFailed {
                     event_id: EventId::new(),
                     timestamp: Utc::now(),
-                    query_id: query.id.clone(),
+                    query_id: query.id().clone(),
                     execution_time,
                     error: "Query execution failed".to_string(),
                 }));
@@ -202,7 +210,7 @@ where
             event_id: EventId::new(),
             timestamp: Utc::now(),
             schema_id: schema.id.clone(),
-            version: schema.version.0.clone(),
+            version: schema.version.to_string(),
         }));
         
         // Validate schema
@@ -231,7 +239,10 @@ where
                     errors: errors.clone(),
                 }));
                 
-                Err(format!("Schema validation failed: {}", errors.join(", ")))
+                let error_messages: Vec<String> = errors.iter()
+                    .map(|e| e.message.clone())
+                    .collect();
+                Err(format!("Schema validation failed: {}", error_messages.join(", ")))
             }
             ValidationResult::Pending => {
                 Err("Schema validation is pending".to_string())
@@ -244,7 +255,6 @@ where
 mod tests {
     use super::*;
     use crate::domain::{
-        entities::{SchemaId, SchemaVersion},
         repositories::{InMemorySchemaRepository, InMemoryQueryRepository},
         events::InMemoryEventPublisher,
     };
@@ -256,15 +266,7 @@ mod tests {
         let event_publisher = Arc::new(InMemoryEventPublisher::new());
         
         // Create and save a basic schema
-        let mut schema = Schema::new(SchemaId::new(), SchemaVersion::new("1.0"));
-        schema.add_type("Query".to_string(), crate::domain::value_objects::TypeDefinition::Object(
-            crate::domain::value_objects::ObjectTypeDefinition {
-                name: "Query".to_string(),
-                description: None,
-                fields: indexmap::IndexMap::new(),
-                interfaces: Vec::new(),
-            }
-        ));
+        let schema = Schema::new("Query".to_string());
         schema_repo.save(schema).await.unwrap();
         
         let use_case = ExecuteQueryUseCase::new(

@@ -2,7 +2,11 @@
 //!
 //! Repositories provide abstractions for data access and persistence.
 
-use crate::domain::entities::{Schema, SchemaId, Query, QueryId};
+use crate::domain::entities::{
+    schema::Schema,
+    query::Query,
+    ids::{SchemaId, QueryId},
+};
 use async_trait::async_trait;
 use thiserror::Error;
 
@@ -139,7 +143,7 @@ impl Default for InMemoryQueryRepository {
 impl QueryRepository for InMemoryQueryRepository {
     async fn save(&self, query: Query) -> Result<(), RepositoryError> {
         let mut queries = self.queries.write().await;
-        queries.insert(query.id.clone(), query);
+        queries.insert(query.id().clone(), query);
         Ok(())
     }
     
@@ -152,7 +156,7 @@ impl QueryRepository for InMemoryQueryRepository {
         let queries = self.queries.read().await;
         let matching_queries = queries
             .values()
-            .filter(|query| query.query_string == query_string)
+            .filter(|query| query.query_string() == query_string)
             .cloned()
             .collect();
         Ok(matching_queries)
@@ -178,13 +182,14 @@ impl QueryRepository for InMemoryQueryRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::entities::{SchemaVersion};
+    use crate::domain::entities::ids::SchemaVersion;
     
     #[tokio::test]
     async fn test_in_memory_schema_repository() {
         let repo = InMemorySchemaRepository::new();
-        let schema = Schema::new(SchemaId::new(), SchemaVersion::new("1.0"));
-        let schema_id = schema.id.clone();
+        let schema_id = SchemaId::new();
+        let schema_version = SchemaVersion::new("1.0");
+        let schema = Schema::with_id_and_version(schema_id.clone(), schema_version, "Query".to_string());
         
         // Save schema
         repo.save(schema).await.unwrap();
@@ -207,8 +212,8 @@ mod tests {
     async fn test_in_memory_query_repository() {
         let repo = InMemoryQueryRepository::new();
         let query = Query::new("{ test }".to_string());
-        let query_id = query.id.clone();
-        let query_string = query.query_string.clone();
+        let query_id = query.id().clone();
+        let query_string = query.query_string().to_string();
         
         // Save query
         repo.save(query).await.unwrap();

@@ -3,7 +3,8 @@
 //! Events represent things that have happened in the domain and can trigger
 //! side effects or cross-cutting concerns.
 
-use crate::domain::entities::{SchemaId, QueryId};
+use crate::domain::entities::ids::{SchemaId, QueryId};
+use crate::domain::value_objects::GraphQLError;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -62,7 +63,7 @@ pub enum QueryEvent {
         event_id: EventId,
         timestamp: DateTime<Utc>,
         query_id: QueryId,
-        errors: Vec<String>,
+        errors: Vec<GraphQLError>,
     },
     
     /// A query started execution
@@ -161,7 +162,7 @@ pub enum SchemaEvent {
         event_id: EventId,
         timestamp: DateTime<Utc>,
         schema_id: SchemaId,
-        errors: Vec<String>,
+        errors: Vec<GraphQLError>,
     },
     
     /// A schema was deleted
@@ -285,7 +286,7 @@ impl EventPublisher for InMemoryEventPublisher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::entities::{SchemaId, QueryId};
+    use crate::domain::entities::ids::{SchemaId, QueryId};
     
     #[test]
     fn test_query_event_creation() {

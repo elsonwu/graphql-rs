@@ -1,7 +1,6 @@
 //! # GraphQL Server in Rust
 //!
-//! A com// Re-export main components for easy access
-// pub use application::GraphQLServer; // Will be implemented in later PRsehensive GraphQL server implementation built from scratch to understand
+//! A comprehensive GraphQL server implementation built from scratch to understand
 //! the core concepts and architecture of GraphQL.
 //!
 //! This implementation follows Domain-Driven Design (DDD) principles and implements
