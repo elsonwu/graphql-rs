@@ -116,7 +116,7 @@ pub enum DirectiveLocation {
     FragmentSpread,
     InlineFragment,
     VariableDefinition,
-    
+
     // Type System Directive Locations
     Schema,
     Scalar,
@@ -150,7 +150,7 @@ impl GraphQLType {
     pub fn is_nullable(&self) -> bool {
         !matches!(self, GraphQLType::NonNull(_))
     }
-    
+
     /// Get the innermost type, unwrapping NonNull and List wrappers
     pub fn inner_type(&self) -> &GraphQLType {
         match self {
@@ -159,7 +159,7 @@ impl GraphQLType {
             _ => self,
         }
     }
-    
+
     /// Get the name of this type
     pub fn name(&self) -> Option<&str> {
         match self.inner_type() {
@@ -172,7 +172,7 @@ impl GraphQLType {
             _ => None,
         }
     }
-    
+
     /// Check if this is a composite type (Object, Interface, Union)
     pub fn is_composite(&self) -> bool {
         matches!(
@@ -180,7 +180,7 @@ impl GraphQLType {
             GraphQLType::Object(_) | GraphQLType::Interface(_) | GraphQLType::Union(_)
         )
     }
-    
+
     /// Check if this is a leaf type (Scalar, Enum)
     pub fn is_leaf(&self) -> bool {
         matches!(
@@ -188,7 +188,7 @@ impl GraphQLType {
             GraphQLType::Scalar(_) | GraphQLType::Enum(_)
         )
     }
-    
+
     /// Check if this is an input type
     pub fn is_input_type(&self) -> bool {
         match self {
@@ -198,7 +198,7 @@ impl GraphQLType {
             _ => false,
         }
     }
-    
+
     /// Check if this is an output type
     pub fn is_output_type(&self) -> bool {
         match self {
@@ -222,12 +222,16 @@ impl ScalarType {
             ScalarType::Custom(name) => name,
         }
     }
-    
+
     /// Check if this is a built-in scalar type
     pub fn is_builtin(&self) -> bool {
         matches!(
             self,
-            ScalarType::Int | ScalarType::Float | ScalarType::String | ScalarType::Boolean | ScalarType::ID
+            ScalarType::Int
+                | ScalarType::Float
+                | ScalarType::String
+                | ScalarType::Boolean
+                | ScalarType::ID
         )
     }
 }
@@ -250,39 +254,42 @@ impl std::fmt::Display for GraphQLType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn scalar_type_name() {
         assert_eq!(ScalarType::Int.name(), "Int");
         assert_eq!(ScalarType::String.name(), "String");
-        assert_eq!(ScalarType::Custom("DateTime".to_string()).name(), "DateTime");
+        assert_eq!(
+            ScalarType::Custom("DateTime".to_string()).name(),
+            "DateTime"
+        );
     }
-    
+
     #[test]
     fn scalar_type_is_builtin() {
         assert!(ScalarType::Int.is_builtin());
         assert!(ScalarType::String.is_builtin());
         assert!(!ScalarType::Custom("DateTime".to_string()).is_builtin());
     }
-    
+
     #[test]
     fn graphql_type_nullable() {
         let nullable_int = GraphQLType::Scalar(ScalarType::Int);
         let non_null_int = GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::Int)));
-        
+
         assert!(nullable_int.is_nullable());
         assert!(!non_null_int.is_nullable());
     }
-    
+
     #[test]
     fn graphql_type_inner_type() {
         let base_type = GraphQLType::Scalar(ScalarType::String);
         let list_type = GraphQLType::List(Box::new(base_type.clone()));
         let non_null_list = GraphQLType::NonNull(Box::new(list_type));
-        
+
         assert_eq!(non_null_list.inner_type(), &base_type);
     }
-    
+
     #[test]
     fn graphql_type_is_leaf() {
         let scalar = GraphQLType::Scalar(ScalarType::Int);
@@ -297,12 +304,12 @@ mod tests {
             fields: HashMap::new(),
             interfaces: vec![],
         });
-        
+
         assert!(scalar.is_leaf());
         assert!(enum_type.is_leaf());
         assert!(!object.is_leaf());
     }
-    
+
     #[test]
     fn graphql_type_is_input_output() {
         let scalar = GraphQLType::Scalar(ScalarType::String);
@@ -317,23 +324,23 @@ mod tests {
             description: None,
             fields: HashMap::new(),
         });
-        
+
         assert!(scalar.is_input_type());
         assert!(scalar.is_output_type());
-        
+
         assert!(!object.is_input_type());
         assert!(object.is_output_type());
-        
+
         assert!(input_object.is_input_type());
         assert!(!input_object.is_output_type());
     }
-    
+
     #[test]
     fn graphql_type_display() {
         let scalar = GraphQLType::Scalar(ScalarType::String);
         let list = GraphQLType::List(Box::new(scalar.clone()));
         let non_null_list = GraphQLType::NonNull(Box::new(list));
-        
+
         assert_eq!(format!("{}", scalar), "String");
         assert_eq!(format!("{}", non_null_list), "[String]!");
     }

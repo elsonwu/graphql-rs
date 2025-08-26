@@ -10,11 +10,11 @@ impl SchemaId {
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
-    
+
     pub fn from_uuid(uuid: Uuid) -> Self {
         Self(uuid)
     }
-    
+
     pub fn as_uuid(&self) -> Uuid {
         self.0
     }
@@ -40,11 +40,11 @@ impl QueryId {
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
-    
+
     pub fn from_uuid(uuid: Uuid) -> Self {
         Self(uuid)
     }
-    
+
     pub fn as_uuid(&self) -> Uuid {
         self.0
     }
@@ -70,11 +70,11 @@ impl SchemaVersion {
     pub fn new(version: impl Into<String>) -> Self {
         Self(version.into())
     }
-    
+
     pub fn as_str(&self) -> &str {
         &self.0
     }
-    
+
     pub fn to_string(&self) -> String {
         self.0.clone()
     }
@@ -95,7 +95,7 @@ mod tests {
         let id1 = SchemaId::new();
         let id2 = SchemaId::new();
         assert_ne!(id1, id2);
-        
+
         let uuid = Uuid::new_v4();
         let id3 = SchemaId::from_uuid(uuid);
         assert_eq!(id3.as_uuid(), uuid);
@@ -106,7 +106,7 @@ mod tests {
         let id1 = QueryId::new();
         let id2 = QueryId::new();
         assert_ne!(id1, id2);
-        
+
         let uuid = Uuid::new_v4();
         let id3 = QueryId::from_uuid(uuid);
         assert_eq!(id3.as_uuid(), uuid);

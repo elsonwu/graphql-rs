@@ -3,9 +3,9 @@
 //! Repositories provide abstractions for data access and persistence.
 
 use crate::domain::entities::{
-    schema::Schema,
+    ids::{QueryId, SchemaId},
     query::Query,
-    ids::{SchemaId, QueryId},
+    schema::Schema,
 };
 use async_trait::async_trait;
 use thiserror::Error;
@@ -15,16 +15,16 @@ use thiserror::Error;
 pub enum RepositoryError {
     #[error("Schema not found: {id:?}")]
     SchemaNotFound { id: SchemaId },
-    
+
     #[error("Query not found: {id:?}")]
     QueryNotFound { id: QueryId },
-    
+
     #[error("Storage error: {message}")]
     StorageError { message: String },
-    
+
     #[error("Serialization error: {message}")]
     SerializationError { message: String },
-    
+
     #[error("Connection error: {message}")]
     ConnectionError { message: String },
 }
@@ -34,16 +34,16 @@ pub enum RepositoryError {
 pub trait SchemaRepository: Send + Sync {
     /// Save a schema to the repository
     async fn save(&self, schema: Schema) -> Result<(), RepositoryError>;
-    
+
     /// Find a schema by its ID
     async fn find_by_id(&self, id: SchemaId) -> Result<Option<Schema>, RepositoryError>;
-    
+
     /// Find the latest version of a schema
     async fn find_latest(&self) -> Result<Option<Schema>, RepositoryError>;
-    
+
     /// List all schemas
     async fn list_all(&self) -> Result<Vec<Schema>, RepositoryError>;
-    
+
     /// Delete a schema by its ID
     async fn delete(&self, id: SchemaId) -> Result<(), RepositoryError>;
 }
@@ -53,16 +53,17 @@ pub trait SchemaRepository: Send + Sync {
 pub trait QueryRepository: Send + Sync {
     /// Save a query to the repository
     async fn save(&self, query: Query) -> Result<(), RepositoryError>;
-    
+
     /// Find a query by its ID
     async fn find_by_id(&self, id: QueryId) -> Result<Option<Query>, RepositoryError>;
-    
+
     /// Find queries by their query string (for caching)
-    async fn find_by_query_string(&self, query_string: &str) -> Result<Vec<Query>, RepositoryError>;
-    
+    async fn find_by_query_string(&self, query_string: &str)
+        -> Result<Vec<Query>, RepositoryError>;
+
     /// List recent queries (for analytics)
     async fn list_recent(&self, limit: usize) -> Result<Vec<Query>, RepositoryError>;
-    
+
     /// Delete a query by its ID
     async fn delete(&self, id: QueryId) -> Result<(), RepositoryError>;
 }
@@ -76,7 +77,9 @@ impl InMemorySchemaRepository {
     /// Create a new in-memory schema repository
     pub fn new() -> Self {
         Self {
-            schemas: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            schemas: std::sync::Arc::new(
+                tokio::sync::RwLock::new(std::collections::HashMap::new()),
+            ),
         }
     }
 }
@@ -94,24 +97,24 @@ impl SchemaRepository for InMemorySchemaRepository {
         schemas.insert(schema.id.clone(), schema);
         Ok(())
     }
-    
+
     async fn find_by_id(&self, id: SchemaId) -> Result<Option<Schema>, RepositoryError> {
         let schemas = self.schemas.read().await;
         Ok(schemas.get(&id).cloned())
     }
-    
+
     async fn find_latest(&self) -> Result<Option<Schema>, RepositoryError> {
         let schemas = self.schemas.read().await;
         // For now, just return the first schema found
         // In a real implementation, this would be based on creation time or version
         Ok(schemas.values().next().cloned())
     }
-    
+
     async fn list_all(&self) -> Result<Vec<Schema>, RepositoryError> {
         let schemas = self.schemas.read().await;
         Ok(schemas.values().cloned().collect())
     }
-    
+
     async fn delete(&self, id: SchemaId) -> Result<(), RepositoryError> {
         let mut schemas = self.schemas.write().await;
         schemas.remove(&id);
@@ -128,7 +131,9 @@ impl InMemoryQueryRepository {
     /// Create a new in-memory query repository
     pub fn new() -> Self {
         Self {
-            queries: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            queries: std::sync::Arc::new(
+                tokio::sync::RwLock::new(std::collections::HashMap::new()),
+            ),
         }
     }
 }
@@ -146,13 +151,16 @@ impl QueryRepository for InMemoryQueryRepository {
         queries.insert(query.id().clone(), query);
         Ok(())
     }
-    
+
     async fn find_by_id(&self, id: QueryId) -> Result<Option<Query>, RepositoryError> {
         let queries = self.queries.read().await;
         Ok(queries.get(&id).cloned())
     }
-    
-    async fn find_by_query_string(&self, query_string: &str) -> Result<Vec<Query>, RepositoryError> {
+
+    async fn find_by_query_string(
+        &self,
+        query_string: &str,
+    ) -> Result<Vec<Query>, RepositoryError> {
         let queries = self.queries.read().await;
         let matching_queries = queries
             .values()
@@ -161,17 +169,13 @@ impl QueryRepository for InMemoryQueryRepository {
             .collect();
         Ok(matching_queries)
     }
-    
+
     async fn list_recent(&self, limit: usize) -> Result<Vec<Query>, RepositoryError> {
         let queries = self.queries.read().await;
-        let recent_queries = queries
-            .values()
-            .take(limit)
-            .cloned()
-            .collect();
+        let recent_queries = queries.values().take(limit).cloned().collect();
         Ok(recent_queries)
     }
-    
+
     async fn delete(&self, id: QueryId) -> Result<(), RepositoryError> {
         let mut queries = self.queries.write().await;
         queries.remove(&id);
@@ -183,53 +187,54 @@ impl QueryRepository for InMemoryQueryRepository {
 mod tests {
     use super::*;
     use crate::domain::entities::ids::SchemaVersion;
-    
+
     #[tokio::test]
     async fn test_in_memory_schema_repository() {
         let repo = InMemorySchemaRepository::new();
         let schema_id = SchemaId::new();
         let schema_version = SchemaVersion::new("1.0");
-        let schema = Schema::with_id_and_version(schema_id.clone(), schema_version, "Query".to_string());
-        
+        let schema =
+            Schema::with_id_and_version(schema_id.clone(), schema_version, "Query".to_string());
+
         // Save schema
         repo.save(schema).await.unwrap();
-        
+
         // Find schema
         let found_schema = repo.find_by_id(schema_id.clone()).await.unwrap();
         assert!(found_schema.is_some());
-        
+
         // List all schemas
         let all_schemas = repo.list_all().await.unwrap();
         assert_eq!(all_schemas.len(), 1);
-        
+
         // Delete schema
         repo.delete(schema_id.clone()).await.unwrap();
         let deleted_schema = repo.find_by_id(schema_id).await.unwrap();
         assert!(deleted_schema.is_none());
     }
-    
+
     #[tokio::test]
     async fn test_in_memory_query_repository() {
         let repo = InMemoryQueryRepository::new();
         let query = Query::new("{ test }".to_string());
         let query_id = query.id().clone();
         let query_string = query.query_string().to_string();
-        
+
         // Save query
         repo.save(query).await.unwrap();
-        
+
         // Find query by ID
         let found_query = repo.find_by_id(query_id.clone()).await.unwrap();
         assert!(found_query.is_some());
-        
+
         // Find query by string
         let matching_queries = repo.find_by_query_string(&query_string).await.unwrap();
         assert_eq!(matching_queries.len(), 1);
-        
+
         // List recent queries
         let recent_queries = repo.list_recent(10).await.unwrap();
         assert_eq!(recent_queries.len(), 1);
-        
+
         // Delete query
         repo.delete(query_id.clone()).await.unwrap();
         let deleted_query = repo.find_by_id(query_id).await.unwrap();

@@ -2,8 +2,8 @@
 //!
 //! Value objects are immutable objects without identity, defined by their attributes.
 
-use serde::{Deserialize, Serialize};
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 
 /// Represents a GraphQL type definition
 #[derive(Debug, Clone, PartialEq)]
@@ -116,12 +116,12 @@ impl TypeReference {
             TypeReference::List(inner) | TypeReference::NonNull(inner) => inner.innermost_name(),
         }
     }
-    
+
     /// Check if this type reference is non-null
     pub fn is_non_null(&self) -> bool {
         matches!(self, TypeReference::NonNull(_))
     }
-    
+
     /// Check if this type reference is a list
     pub fn is_list(&self) -> bool {
         match self {
@@ -148,22 +148,22 @@ impl ValidationResult {
     pub fn valid() -> Self {
         Self::Valid
     }
-    
+
     /// Create an invalid result with a single error
     pub fn invalid(error: String) -> Self {
         Self::Invalid(vec![GraphQLError::new(error)])
     }
-    
+
     /// Create an invalid result with multiple errors
     pub fn invalid_with_errors(errors: Vec<GraphQLError>) -> Self {
         Self::Invalid(errors)
     }
-    
+
     /// Check if the validation result is valid
     pub fn is_valid(&self) -> bool {
         matches!(self, Self::Valid)
     }
-    
+
     /// Check if the validation result is invalid
     pub fn is_invalid(&self) -> bool {
         matches!(self, Self::Invalid(_))
@@ -175,10 +175,10 @@ impl ValidationResult {
 pub struct ExecutionResult {
     /// The data returned by the query
     pub data: Option<serde_json::Value>,
-    
+
     /// Any errors that occurred during execution
     pub errors: Vec<GraphQLError>,
-    
+
     /// Extensions to the result (for debugging, metrics, etc.)
     pub extensions: Option<serde_json::Map<String, serde_json::Value>>,
 }
@@ -192,7 +192,7 @@ impl ExecutionResult {
             extensions: None,
         }
     }
-    
+
     /// Create an execution result with errors
     pub fn error(errors: Vec<GraphQLError>) -> Self {
         Self {
@@ -201,7 +201,7 @@ impl ExecutionResult {
             extensions: None,
         }
     }
-    
+
     /// Add an extension to the result
     pub fn with_extension(mut self, key: String, value: serde_json::Value) -> Self {
         if self.extensions.is_none() {
@@ -217,13 +217,13 @@ impl ExecutionResult {
 pub struct GraphQLError {
     /// Error message
     pub message: String,
-    
+
     /// Source locations where the error occurred
     pub locations: Vec<SourceLocation>,
-    
+
     /// Path to the field that caused the error
     pub path: Option<Vec<PathSegment>>,
-    
+
     /// Additional error information
     pub extensions: Option<serde_json::Map<String, serde_json::Value>>,
 }
@@ -253,18 +253,18 @@ impl GraphQLError {
             extensions: None,
         }
     }
-    
+
     /// Create a validation error
     pub fn validation_error(message: String) -> Self {
         Self::new(message)
     }
-    
+
     /// Add a source location to the error
     pub fn with_location(mut self, line: u32, column: u32) -> Self {
         self.locations.push(SourceLocation { line, column });
         self
     }
-    
+
     /// Add a path to the error
     pub fn with_path(mut self, path: Vec<PathSegment>) -> Self {
         self.path = Some(path);

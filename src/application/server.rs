@@ -15,7 +15,7 @@ impl GraphQLServer {
             // Initialize with default configuration
         }
     }
-    
+
     /// Build the server (placeholder for now)
     pub async fn build(self) -> Self {
         // Server building logic will be implemented in later PRs

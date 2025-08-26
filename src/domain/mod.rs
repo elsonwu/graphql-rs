@@ -5,10 +5,10 @@
 //! It represents the core GraphQL concepts and business rules.
 
 pub mod entities;
+pub mod events;
+pub mod repositories;
 pub mod services;
 pub mod value_objects;
-pub mod repositories;
-pub mod events;
 
 // Re-export main domain types for easier access
 // pub use entities::{Schema, Query}; // Will be implemented in later PRs
