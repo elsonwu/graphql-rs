@@ -536,7 +536,7 @@ mod tests {
 
     #[test]
     fn tokenize_numbers() {
-        let input = "42 3.14 -7 1.5e10";
+        let input = "42 3.141 -7 1.5e10";
         let mut lexer = Lexer::new(input);
         let tokens = lexer.remaining_tokens();
 

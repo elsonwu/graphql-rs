@@ -123,26 +123,11 @@ impl<'input> Parser<'input> {
         let mut subscription_type = None;
 
         while !self.is_current_token(&Token::RightBrace) {
-            match self.lexer.current_token() {
-                Some(Token::Name(name)) => {
-                    let operation_type = name.clone();
-                    self.lexer.advance();
-                    self.expect_token(&Token::Colon)?;
-
-                    let type_name = self.parse_named_type()?;
-
-                    match operation_type.as_str() {
-                        "query" => query_type = Some(type_name),
-                        "mutation" => mutation_type = Some(type_name),
-                        "subscription" => subscription_type = Some(type_name),
-                        _ => {
-                            return Err(ParseError::InvalidSyntax {
-                                position: self.lexer.position(),
-                                message: format!("Unknown operation type: {operation_type}"),
-                            })
-                        },
-                    }
-                },
+            let operation_type = match self.lexer.current_token() {
+                Some(Token::Name(name)) => name.clone(),
+                Some(Token::Query) => "query".to_string(),
+                Some(Token::Mutation) => "mutation".to_string(),
+                Some(Token::Subscription) => "subscription".to_string(),
                 Some(token) => {
                     return Err(ParseError::UnexpectedToken {
                         expected: "operation type".to_string(),
@@ -153,6 +138,23 @@ impl<'input> Parser<'input> {
                 None => {
                     return Err(ParseError::UnexpectedEof {
                         expected: "operation type or '}'".to_string(),
+                    })
+                },
+            };
+
+            self.lexer.advance();
+            self.expect_token(&Token::Colon)?;
+
+            let type_name = self.parse_named_type()?;
+
+            match operation_type.as_str() {
+                "query" => query_type = Some(type_name),
+                "mutation" => mutation_type = Some(type_name),
+                "subscription" => subscription_type = Some(type_name),
+                _ => {
+                    return Err(ParseError::InvalidSyntax {
+                        position: self.lexer.position(),
+                        message: format!("Unknown operation type: {operation_type}"),
                     })
                 },
             }

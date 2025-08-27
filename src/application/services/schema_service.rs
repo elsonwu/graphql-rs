@@ -590,13 +590,44 @@ mod tests {
             interfaces: vec![],
         });
 
+        // Create Query type
+        let query_type = GraphQLType::Object(ObjectType {
+            name: "Query".to_string(),
+            description: Some("Root Query".to_string()),
+            fields: {
+                let mut fields = HashMap::new();
+                fields.insert(
+                    "user".to_string(),
+                    FieldDefinition {
+                        name: "user".to_string(),
+                        description: Some("Get a user".to_string()),
+                        field_type: GraphQLType::Object(ObjectType {
+                            name: "User".to_string(),
+                            description: None,
+                            fields: HashMap::new(),
+                            interfaces: vec![],
+                        }),
+                        arguments: HashMap::new(),
+                        deprecation_reason: None,
+                    },
+                );
+                fields
+            },
+            interfaces: vec![],
+        });
+
         let result = service
             .build_schema()
             .query_type("Query")
             .add_type(user_type)
             .unwrap()
+            .add_type(query_type)
+            .unwrap()
             .build();
 
+        if let Err(ref e) = result {
+            eprintln!("Schema build failed with error: {:?}", e);
+        }
         assert!(result.is_ok());
         assert!(service.has_schema());
 

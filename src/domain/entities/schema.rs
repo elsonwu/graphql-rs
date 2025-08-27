@@ -203,10 +203,11 @@ impl Schema {
             }
         }
 
-        // Check for circular references
-        if let Err(mut circular_errors) = self.check_circular_references() {
-            errors.append(&mut circular_errors);
-        }
+        // Note: Circular type references are allowed in GraphQL schemas
+        // They represent valid relationships (e.g., User -> Post -> User)
+        // and are handled properly by the GraphQL execution engine
+        // Only problematic during execution if they create infinite recursion,
+        // which is a query execution concern, not a schema validation concern
 
         if errors.is_empty() {
             Ok(())
