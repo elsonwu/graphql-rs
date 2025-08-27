@@ -24,12 +24,12 @@ pub enum SchemaServiceError {
 impl std::fmt::Display for SchemaServiceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SchemaServiceError::ParseError(e) => write!(f, "Parse error: {}", e),
+            SchemaServiceError::ParseError(e) => write!(f, "Parse error: {e}"),
             SchemaServiceError::ValidationError { errors } => {
                 write!(f, "Validation error: {} errors found", errors.len())
             },
             SchemaServiceError::SchemaNotFound => write!(f, "Schema not found"),
-            SchemaServiceError::IoError(e) => write!(f, "I/O error: {}", e),
+            SchemaServiceError::IoError(e) => write!(f, "I/O error: {e}"),
         }
     }
 }
@@ -55,6 +55,7 @@ pub struct SchemaService {
 
 impl SchemaService {
     /// Create a new schema service
+    #[must_use]
     pub fn new() -> Self {
         Self {
             current_schema: None,
@@ -89,11 +90,13 @@ impl SchemaService {
     }
 
     /// Get the current schema
+    #[must_use]
     pub fn get_schema(&self) -> Option<Arc<Schema>> {
         self.current_schema.clone()
     }
 
     /// Check if a schema is loaded
+    #[must_use]
     pub fn has_schema(&self) -> bool {
         self.current_schema.is_some()
     }
@@ -119,9 +122,9 @@ impl SchemaService {
         let schema = parser.parse_schema_document()?;
 
         match schema.validate() {
-            Ok(_) => Ok(vec!["Schema is valid".to_string()]),
+            Ok(()) => Ok(vec!["Schema is valid".to_string()]),
             Err(errors) => {
-                let error_messages: Vec<String> = errors.iter().map(|e| format!("{}", e)).collect();
+                let error_messages: Vec<String> = errors.iter().map(|e| format!("{e}")).collect();
                 Ok(error_messages)
             },
         }
@@ -157,18 +160,21 @@ impl<'a> SchemaBuilder<'a> {
     }
 
     /// Set the query root type
+    #[must_use]
     pub fn query_type(mut self, type_name: &str) -> Self {
         self.schema.query_type = type_name.to_string();
         self
     }
 
     /// Set the mutation root type
+    #[must_use]
     pub fn mutation_type(mut self, type_name: &str) -> Self {
         self.schema.mutation_type = Some(type_name.to_string());
         self
     }
 
     /// Set the subscription root type
+    #[must_use]
     pub fn subscription_type(mut self, type_name: &str) -> Self {
         self.schema.subscription_type = Some(type_name.to_string());
         self
@@ -279,7 +285,7 @@ pub struct TypeInfo {
     pub possible_types: Option<Vec<String>>,
     /// Enum values (for ENUM types)
     pub enum_values: Option<Vec<String>>,
-    /// Input fields (for INPUT_OBJECT types)
+    /// Input fields (for `INPUT_OBJECT` types)
     pub input_fields: Option<Vec<String>>,
 }
 
@@ -441,7 +447,7 @@ impl DirectiveInfo {
             locations: directive
                 .locations
                 .iter()
-                .map(|loc| format!("{:?}", loc))
+                .map(|loc| format!("{loc:?}"))
                 .collect(),
             arguments: directive.arguments.keys().cloned().collect(),
             is_repeatable: directive.is_repeatable,
@@ -530,7 +536,7 @@ mod tests {
     fn load_simple_schema_from_sdl() {
         let mut service = SchemaService::new();
 
-        let sdl = r#"
+        let sdl = r"
         type Query {
             hello: String
         }
@@ -543,7 +549,7 @@ mod tests {
             id: ID!
             name: String!
         }
-        "#;
+        ";
 
         let result = service.load_schema_from_sdl(sdl);
         assert!(result.is_ok());
@@ -626,7 +632,7 @@ mod tests {
             .build();
 
         if let Err(ref e) = result {
-            eprintln!("Schema build failed with error: {:?}", e);
+            eprintln!("Schema build failed with error: {e:?}");
         }
         assert!(result.is_ok());
         assert!(service.has_schema());
@@ -639,7 +645,7 @@ mod tests {
     fn get_schema_stats() {
         let mut service = SchemaService::new();
 
-        let sdl = r#"
+        let sdl = r"
         type Query {
             user: User
             posts: [Post]
@@ -667,7 +673,7 @@ mod tests {
             name: String!
             email: String
         }
-        "#;
+        ";
 
         let _result = service.load_schema_from_sdl(sdl).unwrap();
         let stats = service.get_schema_stats().unwrap();
@@ -681,11 +687,11 @@ mod tests {
 
     #[test]
     fn validate_invalid_schema() {
-        let invalid_sdl = r#"
+        let invalid_sdl = r"
         type Query {
             user: NonExistentType
         }
-        "#;
+        ";
 
         let result = SchemaService::validate_schema_sdl(invalid_sdl);
         // This should parse successfully but might have validation warnings
@@ -696,17 +702,17 @@ mod tests {
     fn introspect_schema() {
         let mut service = SchemaService::new();
 
-        let sdl = r#"
+        let sdl = r"
         type Query {
             hello: String
         }
-        "#;
+        ";
 
         let _result = service.load_schema_from_sdl(sdl).unwrap();
         let introspection = service.introspect().unwrap();
 
         assert_eq!(introspection.schema_info.query_type, "Query");
-        assert!(introspection.types.len() > 0);
-        assert!(introspection.directives.len() > 0);
+        assert!(!introspection.types.is_empty());
+        assert!(!introspection.directives.is_empty());
     }
 }

@@ -16,6 +16,7 @@ pub struct EventId(pub Uuid);
 
 impl EventId {
     /// Generate a new event ID
+    #[must_use]
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
@@ -297,6 +298,7 @@ pub struct InMemoryEventPublisher {
 
 impl InMemoryEventPublisher {
     /// Create a new in-memory event publisher
+    #[must_use]
     pub fn new() -> Self {
         Self {
             events: std::sync::Arc::new(tokio::sync::RwLock::new(Vec::new())),

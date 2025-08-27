@@ -63,6 +63,7 @@ pub struct Parser<'input> {
 
 impl<'input> Parser<'input> {
     /// Create a new parser
+    #[must_use]
     pub fn new(input: &'input str) -> Self {
         Self {
             lexer: Lexer::new(input),
@@ -76,7 +77,7 @@ impl<'input> Parser<'input> {
         // Parse all type definitions
         while self.lexer.current_token().is_some() {
             let definition = self.parse_type_system_definition()?;
-            schema_builder.add_definition(definition)?;
+            schema_builder.add_definition(definition);
         }
 
         schema_builder.build()
@@ -500,7 +501,7 @@ impl<'input> Parser<'input> {
             },
             Some(token) => Err(ParseError::UnexpectedToken {
                 expected: "directive location".to_string(),
-                found: format!("{}", token),
+                found: format!("{token}"),
                 position: self.lexer.position(),
             }),
             None => Err(ParseError::UnexpectedEof {
@@ -576,7 +577,7 @@ impl<'input> Parser<'input> {
             },
             Some(token) => Err(ParseError::UnexpectedToken {
                 expected: "name".to_string(),
-                found: format!("{}", token),
+                found: format!("{token}"),
                 position: self.lexer.position(),
             }),
             None => Err(ParseError::UnexpectedEof {
@@ -624,7 +625,7 @@ impl<'input> Parser<'input> {
             Some(Token::LeftBrace) => self.parse_object_value(),
             Some(token) => Err(ParseError::UnexpectedToken {
                 expected: "value".to_string(),
-                found: format!("{}", token),
+                found: format!("{token}"),
                 position: self.lexer.position(),
             }),
             None => Err(ParseError::UnexpectedEof {
@@ -719,7 +720,7 @@ impl SchemaBuilder {
         }
     }
 
-    fn add_definition(&mut self, definition: TypeSystemDefinition) -> Result<(), ParseError> {
+    fn add_definition(&mut self, definition: TypeSystemDefinition) {
         match definition {
             TypeSystemDefinition::Schema(schema_def) => {
                 self.query_type = Some(schema_def.query_type);
@@ -747,7 +748,6 @@ impl SchemaBuilder {
                 self.directives.insert(name, directive);
             },
         }
-        Ok(())
     }
 
     fn build(self) -> Result<Schema, ParseError> {
@@ -762,7 +762,7 @@ impl SchemaBuilder {
                 .add_type(type_def)
                 .map_err(|e| ParseError::InvalidSyntax {
                     position: 0,
-                    message: format!("Failed to add type {}: {}", name, e),
+                    message: format!("Failed to add type {name}: {e}"),
                 })?;
         }
 
@@ -771,7 +771,7 @@ impl SchemaBuilder {
                 .add_directive(directive)
                 .map_err(|e| ParseError::InvalidSyntax {
                     position: 0,
-                    message: format!("Failed to add directive {}: {}", name, e),
+                    message: format!("Failed to add directive {name}: {e}"),
                 })?;
         }
 
@@ -844,13 +844,13 @@ mod tests {
 
     #[test]
     fn parse_simple_object_type() {
-        let input = r#"
+        let input = r"
         type User {
             id: ID!
             name: String
             age: Int
         }
-        "#;
+        ";
         let mut parser = Parser::new(input);
 
         let result = parser.parse_type_system_definition();
@@ -869,13 +869,13 @@ mod tests {
 
     #[test]
     fn parse_enum_type() {
-        let input = r#"
+        let input = r"
         enum Status {
             ACTIVE
             INACTIVE
             PENDING
         }
-        "#;
+        ";
         let mut parser = Parser::new(input);
 
         let result = parser.parse_type_system_definition();
@@ -914,12 +914,12 @@ mod tests {
 
     #[test]
     fn parse_schema_definition() {
-        let input = r#"
+        let input = r"
         schema {
             query: Query
             mutation: Mutation
         }
-        "#;
+        ";
         let mut parser = Parser::new(input);
 
         let result = parser.parse_type_system_definition();

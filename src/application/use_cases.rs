@@ -56,9 +56,7 @@ where
         let variables_value = if variables.is_empty() {
             None
         } else {
-            Some(serde_json::Value::Object(
-                variables.into_iter().map(|(k, v)| (k, v)).collect(),
-            ))
+            Some(serde_json::Value::Object(variables.into_iter().collect()))
         };
 
         let mut query =
@@ -75,7 +73,7 @@ where
             }));
 
         // Save query for analytics
-        if let Err(_) = self.query_repository.save(query.clone()).await {
+        if (self.query_repository.save(query.clone()).await).is_err() {
             // Log error but continue execution
         }
 
@@ -230,7 +228,7 @@ where
                     }));
 
                 // Save schema
-                if let Err(_) = self.schema_repository.save(schema).await {
+                if (self.schema_repository.save(schema).await).is_err() {
                     return Err("Failed to save schema".to_string());
                 }
 

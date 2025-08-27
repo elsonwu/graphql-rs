@@ -88,13 +88,14 @@ pub trait QueryRepository: Send + Sync {
     async fn delete(&self, id: QueryId) -> Result<(), RepositoryError>;
 }
 
-/// In-memory implementation of SchemaRepository for development and testing
+/// In-memory implementation of `SchemaRepository` for development and testing
 pub struct InMemorySchemaRepository {
     schemas: std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<SchemaId, Schema>>>,
 }
 
 impl InMemorySchemaRepository {
     /// Create a new in-memory schema repository
+    #[must_use]
     pub fn new() -> Self {
         Self {
             schemas: std::sync::Arc::new(
@@ -142,13 +143,14 @@ impl SchemaRepository for InMemorySchemaRepository {
     }
 }
 
-/// In-memory implementation of QueryRepository for development and testing
+/// In-memory implementation of `QueryRepository` for development and testing
 pub struct InMemoryQueryRepository {
     queries: std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<QueryId, Query>>>,
 }
 
 impl InMemoryQueryRepository {
     /// Create a new in-memory query repository
+    #[must_use]
     pub fn new() -> Self {
         Self {
             queries: std::sync::Arc::new(

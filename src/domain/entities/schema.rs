@@ -1,6 +1,9 @@
 use crate::domain::entities::{
     ids::{SchemaId, SchemaVersion},
-    types::*,
+    types::{
+        DirectiveDefinition, DirectiveLocation, EnumType, GraphQLType, InputFieldDefinition,
+        InputObjectType, InterfaceType, ObjectType, ScalarType, UnionType, Value,
+    },
 };
 use std::collections::HashMap;
 use thiserror::Error;
@@ -108,6 +111,7 @@ pub enum SchemaError {
 
 impl Schema {
     /// Create a new schema with the minimum required components
+    #[must_use]
     pub fn new(query_type: String) -> Self {
         let mut schema = Self {
             id: SchemaId::new(),
@@ -128,6 +132,7 @@ impl Schema {
     }
 
     /// Create a new schema with specific ID and version
+    #[must_use]
     pub fn with_id_and_version(id: SchemaId, version: SchemaVersion, query_type: String) -> Self {
         let mut schema = Self {
             id,
@@ -178,11 +183,13 @@ impl Schema {
     }
 
     /// Get a type by name
+    #[must_use]
     pub fn get_type(&self, name: &str) -> Option<&GraphQLType> {
         self.types.get(name)
     }
 
     /// Get a directive by name
+    #[must_use]
     pub fn get_directive(&self, name: &str) -> Option<&DirectiveDefinition> {
         self.directives.get(name)
     }
@@ -223,6 +230,7 @@ impl Schema {
     }
 
     /// Get the Mutation root type if it exists
+    #[must_use]
     pub fn mutation_type(&self) -> Option<&GraphQLType> {
         self.mutation_type
             .as_ref()
@@ -230,6 +238,7 @@ impl Schema {
     }
 
     /// Get the Subscription root type if it exists
+    #[must_use]
     pub fn subscription_type(&self) -> Option<&GraphQLType> {
         self.subscription_type
             .as_ref()
@@ -237,6 +246,7 @@ impl Schema {
     }
 
     /// Get all Object types that implement a given interface
+    #[must_use]
     pub fn get_implementations(&self, interface_name: &str) -> Vec<&ObjectType> {
         self.types
             .values()
@@ -252,6 +262,7 @@ impl Schema {
     }
 
     /// Get all types that are part of a union
+    #[must_use]
     pub fn get_union_members(&self, union_name: &str) -> Option<Vec<&GraphQLType>> {
         if let Some(GraphQLType::Union(union_type)) = self.get_type(union_name) {
             let members: Vec<_> = union_type
@@ -413,9 +424,8 @@ impl Schema {
                 }
             },
             GraphQLType::Enum(enum_type) => {
-                if let Err(mut enum_errors) = self.validate_enum_type(enum_type) {
-                    errors.append(&mut enum_errors);
-                }
+                Schema::validate_enum_type(enum_type);
+                // Enums are generally valid - no errors to add
             },
             GraphQLType::InputObject(input) => {
                 if let Err(mut input_errors) = self.validate_input_object_type(input) {
@@ -527,10 +537,9 @@ impl Schema {
     }
 
     /// Validate an Enum type
-    fn validate_enum_type(&self, _enum_type: &EnumType) -> Result<(), Vec<SchemaError>> {
+    fn validate_enum_type(_enum_type: &EnumType) {
         // Enum types are generally valid if they have at least one value
         // Additional validation could be added here
-        Ok(())
     }
 
     /// Validate an Input Object type
@@ -581,7 +590,7 @@ impl Schema {
                     return Err(SchemaError::InvalidInterfaceImplementation {
                         interface: interface.name.clone(),
                         implementor: obj.name.clone(),
-                        reason: format!("Missing field '{}'", field_name),
+                        reason: format!("Missing field '{field_name}'"),
                     });
                 },
             }
@@ -632,21 +641,17 @@ impl Schema {
 
         visiting.insert(type_name.to_string());
 
-        if let Some(type_def) = self.get_type(type_name) {
+        if let Some(GraphQLType::Object(obj)) = self.get_type(type_name) {
             // Visit referenced types based on the type definition
             // This is a simplified version - a full implementation would traverse all type references
-            match type_def {
-                GraphQLType::Object(obj) => {
-                    for field in obj.fields.values() {
-                        if let Some(referenced_type) = field.field_type.name() {
-                            if referenced_type != type_name {
-                                self.visit_type_for_cycles(referenced_type, visited, visiting)?;
-                            }
-                        }
+            for field in obj.fields.values() {
+                if let Some(referenced_type) = field.field_type.name() {
+                    if referenced_type != type_name {
+                        self.visit_type_for_cycles(referenced_type, visited, visiting)?;
                     }
-                },
-                _ => {}, // Other types handled similarly
+                }
             }
+            // Other types handled similarly
         }
 
         visiting.remove(type_name);
@@ -672,7 +677,7 @@ impl Schema {
         interface_type: &GraphQLType,
     ) -> bool {
         // Simplified compatibility check - a full implementation would be more comprehensive
-        format!("{}", implementor_type) == format!("{}", interface_type)
+        format!("{implementor_type}") == format!("{interface_type}")
     }
 }
 

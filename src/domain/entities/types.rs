@@ -219,20 +219,22 @@ pub enum Value {
 
 impl GraphQLType {
     /// Check if this type is nullable
+    #[must_use]
     pub fn is_nullable(&self) -> bool {
         !matches!(self, GraphQLType::NonNull(_))
     }
 
-    /// Get the innermost type, unwrapping NonNull and List wrappers
+    /// Get the innermost type, unwrapping `NonNull` and List wrappers
+    #[must_use]
     pub fn inner_type(&self) -> &GraphQLType {
         match self {
-            GraphQLType::NonNull(inner) => inner.inner_type(),
-            GraphQLType::List(inner) => inner.inner_type(),
+            GraphQLType::List(inner) | GraphQLType::NonNull(inner) => inner.inner_type(),
             _ => self,
         }
     }
 
     /// Get the name of this type
+    #[must_use]
     pub fn name(&self) -> Option<&str> {
         match self.inner_type() {
             GraphQLType::Scalar(scalar) => Some(scalar.name()),
@@ -246,6 +248,7 @@ impl GraphQLType {
     }
 
     /// Check if this is a composite type (Object, Interface, Union)
+    #[must_use]
     pub fn is_composite(&self) -> bool {
         matches!(
             self.inner_type(),
@@ -254,6 +257,7 @@ impl GraphQLType {
     }
 
     /// Check if this is a leaf type (Scalar, Enum)
+    #[must_use]
     pub fn is_leaf(&self) -> bool {
         matches!(
             self.inner_type(),
@@ -262,20 +266,20 @@ impl GraphQLType {
     }
 
     /// Check if this is an input type
+    #[must_use]
     pub fn is_input_type(&self) -> bool {
         match self {
-            GraphQLType::NonNull(inner) => inner.is_input_type(),
-            GraphQLType::List(inner) => inner.is_input_type(),
+            GraphQLType::List(inner) | GraphQLType::NonNull(inner) => inner.is_input_type(),
             GraphQLType::Scalar(_) | GraphQLType::Enum(_) | GraphQLType::InputObject(_) => true,
             _ => false,
         }
     }
 
     /// Check if this is an output type
+    #[must_use]
     pub fn is_output_type(&self) -> bool {
         match self {
-            GraphQLType::NonNull(inner) => inner.is_output_type(),
-            GraphQLType::List(inner) => inner.is_output_type(),
+            GraphQLType::List(inner) | GraphQLType::NonNull(inner) => inner.is_output_type(),
             GraphQLType::InputObject(_) => false,
             _ => true,
         }
@@ -284,6 +288,7 @@ impl GraphQLType {
 
 impl ScalarType {
     /// Get the name of this scalar type
+    #[must_use]
     pub fn name(&self) -> &str {
         match self {
             ScalarType::Int => "Int",
@@ -296,6 +301,7 @@ impl ScalarType {
     }
 
     /// Check if this is a built-in scalar type
+    #[must_use]
     pub fn is_builtin(&self) -> bool {
         matches!(
             self,
@@ -317,8 +323,8 @@ impl std::fmt::Display for GraphQLType {
             GraphQLType::Union(union) => write!(f, "{}", union.name),
             GraphQLType::Enum(enum_type) => write!(f, "{}", enum_type.name),
             GraphQLType::InputObject(input) => write!(f, "{}", input.name),
-            GraphQLType::List(inner) => write!(f, "[{}]", inner),
-            GraphQLType::NonNull(inner) => write!(f, "{}!", inner),
+            GraphQLType::List(inner) => write!(f, "[{inner}]"),
+            GraphQLType::NonNull(inner) => write!(f, "{inner}!"),
         }
     }
 }
@@ -413,7 +419,7 @@ mod tests {
         let list = GraphQLType::List(Box::new(scalar.clone()));
         let non_null_list = GraphQLType::NonNull(Box::new(list));
 
-        assert_eq!(format!("{}", scalar), "String");
-        assert_eq!(format!("{}", non_null_list), "[String]!");
+        assert_eq!(format!("{scalar}"), "String");
+        assert_eq!(format!("{non_null_list}"), "[String]!");
     }
 }

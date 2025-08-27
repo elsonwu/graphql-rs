@@ -8,6 +8,7 @@ pub struct RestHandler;
 
 impl RestHandler {
     /// Create a new REST handler (placeholder)
+    #[must_use]
     pub fn new() -> Self {
         Self
     }

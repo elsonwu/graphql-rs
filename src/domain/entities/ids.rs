@@ -8,16 +8,19 @@ pub struct SchemaId(Uuid);
 
 impl SchemaId {
     /// Creates a new random schema ID
+    #[must_use]
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
 
     /// Creates a schema ID from an existing UUID
+    #[must_use]
     pub fn from_uuid(uuid: Uuid) -> Self {
         Self(uuid)
     }
 
     /// Returns the underlying UUID
+    #[must_use]
     pub fn as_uuid(&self) -> Uuid {
         self.0
     }
@@ -41,16 +44,19 @@ pub struct QueryId(Uuid);
 
 impl QueryId {
     /// Creates a new random query ID
+    #[must_use]
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
 
     /// Creates a query ID from an existing UUID
+    #[must_use]
     pub fn from_uuid(uuid: Uuid) -> Self {
         Self(uuid)
     }
 
     /// Returns the underlying UUID
+    #[must_use]
     pub fn as_uuid(&self) -> Uuid {
         self.0
     }
@@ -79,13 +85,15 @@ impl SchemaVersion {
     }
 
     /// Returns the version as a string slice
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
     /// Converts the version to an owned string
-    pub fn to_string(&self) -> String {
-        self.0.clone()
+    #[must_use]
+    pub fn into_string(self) -> String {
+        self.0
     }
 }
 

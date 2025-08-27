@@ -13,11 +13,13 @@ pub struct SchemaValidator;
 
 impl SchemaValidator {
     /// Create a new schema validator
+    #[must_use]
     pub fn new() -> Self {
         Self
     }
 
     /// Validate a GraphQL schema
+    #[must_use]
     pub fn validate(&self, schema: &Schema) -> ValidationResult {
         let mut errors = Vec::new();
 
@@ -33,8 +35,7 @@ impl SchemaValidator {
         if let Some(mutation_type) = &schema.mutation_type {
             if schema.get_type(mutation_type).is_none() {
                 errors.push(GraphQLError::validation_error(format!(
-                    "Mutation type '{}' is not defined",
-                    mutation_type
+                    "Mutation type '{mutation_type}' is not defined"
                 )));
             }
         }
@@ -43,8 +44,7 @@ impl SchemaValidator {
         if let Some(subscription_type) = &schema.subscription_type {
             if schema.get_type(subscription_type).is_none() {
                 errors.push(GraphQLError::validation_error(format!(
-                    "Subscription type '{}' is not defined",
-                    subscription_type
+                    "Subscription type '{subscription_type}' is not defined"
                 )));
             }
         }
@@ -70,11 +70,13 @@ pub struct QueryValidator;
 
 impl QueryValidator {
     /// Create a new query validator
+    #[must_use]
     pub fn new() -> Self {
         Self
     }
 
     /// Validate a GraphQL query against a schema
+    #[must_use]
     pub fn validate(&self, query: &Query, _schema: &Schema) -> ValidationResult {
         // Basic validation for now - comprehensive validation will be implemented later
         if query.is_empty() {
@@ -98,6 +100,7 @@ pub struct QueryExecutor;
 
 impl QueryExecutor {
     /// Create a new query executor
+    #[must_use]
     pub fn new() -> Self {
         Self
     }
@@ -134,8 +137,7 @@ impl QueryExecution for QueryExecutor {
             Err(parse_error) => {
                 return ExecutionResult::error(vec![
                     crate::domain::value_objects::GraphQLError::new(format!(
-                        "Query parse error: {}",
-                        parse_error
+                        "Query parse error: {parse_error}"
                     )),
                 ]);
             },
@@ -171,7 +173,6 @@ impl QueryExecutor {
             },
             crate::infrastructure::query_parser::OperationType::Mutation => {
                 self.execute_mutation_operation(operation, schema, variables)
-                    .await
             },
             crate::infrastructure::query_parser::OperationType::Subscription => {
                 Err(crate::domain::value_objects::GraphQLError::new(
@@ -215,8 +216,7 @@ impl QueryExecutor {
                         .copied()
                         .ok_or_else(|| {
                             crate::domain::value_objects::GraphQLError::new(format!(
-                                "Operation '{}' not found",
-                                name
+                                "Operation '{name}' not found"
                             ))
                         })
                 } else {
@@ -238,7 +238,7 @@ impl QueryExecutor {
     ) -> Result<serde_json::Value, crate::domain::value_objects::GraphQLError> {
         // Get the Query root type from schema
         let query_root = schema.query_type().map_err(|e| {
-            crate::domain::value_objects::GraphQLError::new(format!("Schema error: {}", e))
+            crate::domain::value_objects::GraphQLError::new(format!("Schema error: {e}"))
         })?;
 
         // Execute the selection set on the query root type
@@ -251,7 +251,7 @@ impl QueryExecutor {
     }
 
     /// Execute a mutation operation (stub for now)
-    async fn execute_mutation_operation(
+    fn execute_mutation_operation(
         &self,
         _operation: &crate::infrastructure::query_parser::OperationDefinition,
         _schema: &Schema,
@@ -348,17 +348,16 @@ impl QueryExecutor {
             match field_type {
                 GraphQLType::Scalar(scalar) => match scalar {
                     ScalarType::String => {
-                        Ok(serde_json::Value::String(format!("Mock {}", field_name)))
+                        Ok(serde_json::Value::String(format!("Mock {field_name}")))
                     },
                     ScalarType::Int => Ok(serde_json::Value::Number(serde_json::Number::from(42))),
                     ScalarType::Float => Ok(serde_json::Value::Number(
-                        serde_json::Number::from_f64(3.14).unwrap(),
+                        serde_json::Number::from_f64(std::f64::consts::PI).unwrap(),
                     )),
                     ScalarType::Boolean => Ok(serde_json::Value::Bool(true)),
-                    ScalarType::ID => Ok(serde_json::Value::String(format!("id_{}", field_name))),
+                    ScalarType::ID => Ok(serde_json::Value::String(format!("id_{field_name}"))),
                     ScalarType::Custom(name) => Ok(serde_json::Value::String(format!(
-                        "Custom scalar: {} for field: {}",
-                        name, field_name
+                        "Custom scalar: {name} for field: {field_name}"
                     ))),
                 },
                 GraphQLType::Object(_) => {
@@ -372,8 +371,8 @@ impl QueryExecutor {
                 GraphQLType::List(_) => {
                     // Return a mock list
                     Ok(serde_json::Value::Array(vec![
-                        serde_json::Value::String(format!("{}_item_1", field_name)),
-                        serde_json::Value::String(format!("{}_item_2", field_name)),
+                        serde_json::Value::String(format!("{field_name}_item_1")),
+                        serde_json::Value::String(format!("{field_name}_item_2")),
                     ]))
                 },
                 GraphQLType::NonNull(inner) => {
@@ -381,8 +380,7 @@ impl QueryExecutor {
                     self.resolve_field_value(inner, field_name).await
                 },
                 _ => Ok(serde_json::Value::String(format!(
-                    "Unsupported type for field: {}",
-                    field_name
+                    "Unsupported type for field: {field_name}"
                 ))),
             }
         })

@@ -214,6 +214,7 @@ pub struct QueryParser<'input> {
 
 impl<'input> QueryParser<'input> {
     /// Create a new query parser
+    #[must_use]
     pub fn new(input: &'input str) -> Self {
         Self {
             lexer: Lexer::new(input),
@@ -250,7 +251,7 @@ impl<'input> QueryParser<'input> {
             },
             Some(token) => Err(QueryParseError::UnexpectedToken {
                 expected: "operation or fragment".to_string(),
-                found: format!("{:?}", token),
+                found: format!("{token:?}"),
                 position: self.lexer.position(),
             }),
             None => Err(QueryParseError::UnexpectedEof {
@@ -277,7 +278,7 @@ impl<'input> QueryParser<'input> {
             Some(token) => {
                 return Err(QueryParseError::UnexpectedToken {
                     expected: "query, mutation, or subscription".to_string(),
-                    found: format!("{:?}", token),
+                    found: format!("{token:?}"),
                     position: self.lexer.position(),
                 })
             },
@@ -511,7 +512,10 @@ impl<'input> QueryParser<'input> {
                 Ok(Value::Variable(self.parse_name()?))
             },
             Some(Token::Integer(i)) => {
-                let value = *i as i32; // Convert i64 to i32
+                let value = i32::try_from(*i).map_err(|_| QueryParseError::InvalidSyntax {
+                    position: self.lexer.position(),
+                    message: format!("Integer value {i} is too large for i32"),
+                })?;
                 self.lexer.advance();
                 Ok(Value::Int(value))
             },
@@ -546,7 +550,7 @@ impl<'input> QueryParser<'input> {
             Some(Token::LeftBrace) => self.parse_object_value(),
             Some(token) => Err(QueryParseError::UnexpectedToken {
                 expected: "value".to_string(),
-                found: format!("{:?}", token),
+                found: format!("{token:?}"),
                 position: self.lexer.position(),
             }),
             None => Err(QueryParseError::UnexpectedEof {
@@ -594,7 +598,7 @@ impl<'input> QueryParser<'input> {
             },
             Some(token) => Err(QueryParseError::UnexpectedToken {
                 expected: "name".to_string(),
-                found: format!("{:?}", token),
+                found: format!("{token:?}"),
                 position: self.lexer.position(),
             }),
             None => Err(QueryParseError::UnexpectedEof {
@@ -620,12 +624,12 @@ impl<'input> QueryParser<'input> {
         } else {
             match self.lexer.current_token() {
                 Some(token) => Err(QueryParseError::UnexpectedToken {
-                    expected: format!("{:?}", expected),
-                    found: format!("{:?}", token),
+                    expected: format!("{expected:?}"),
+                    found: format!("{token:?}"),
                     position: self.lexer.position(),
                 }),
                 None => Err(QueryParseError::UnexpectedEof {
-                    expected: format!("{:?}", expected),
+                    expected: format!("{expected:?}"),
                 }),
             }
         }
@@ -638,14 +642,14 @@ mod tests {
 
     #[test]
     fn test_parse_simple_query() {
-        let input = r#"
+        let input = r"
         query GetUser {
             user {
                 id
                 name
             }
         }
-        "#;
+        ";
 
         let mut parser = QueryParser::new(input);
         let document = parser.parse_document().unwrap();
@@ -686,14 +690,14 @@ mod tests {
 
     #[test]
     fn test_parse_mutation() {
-        let input = r#"
+        let input = r"
         mutation CreateUser($userData: UserData!) {
             createUser(userData: $userData) {
                 id
                 name
             }
         }
-        "#;
+        ";
 
         let mut parser = QueryParser::new(input);
         let document = parser.parse_document().unwrap();
@@ -708,14 +712,14 @@ mod tests {
 
     #[test]
     fn test_parse_anonymous_query() {
-        let input = r#"
+        let input = r"
         {
             user {
                 id
                 name
             }
         }
-        "#;
+        ";
 
         let mut parser = QueryParser::new(input);
         let document = parser.parse_document().unwrap();
@@ -730,14 +734,14 @@ mod tests {
 
     #[test]
     fn test_parse_field_with_alias() {
-        let input = r#"
+        let input = r"
         {
             currentUser: user {
                 id
                 displayName: name
             }
         }
-        "#;
+        ";
 
         let mut parser = QueryParser::new(input);
         let document = parser.parse_document().unwrap();
