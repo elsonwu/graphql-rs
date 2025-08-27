@@ -17,17 +17,12 @@
 //!
 //! ## Usage
 //!
-//! ```rust
-//! use graphql_rs::GraphQLServer;
+//! ```rust,no_run
+//! use graphql_rs::application::server::GraphQLServer;
 //!
-//! #[tokio::main]
-//! async fn main() {
-//!     let server = GraphQLServer::new()
-//!         .with_schema_from_file("schema.graphql")
-//!         .build()
-//!         .await;
-//!     
-//!     server.listen("127.0.0.1:8000").await;
+//! fn main() {
+//!     let server = GraphQLServer::new().build();
+//!     println!("GraphQL server created: {:?}", std::ptr::addr_of!(server));
 //! }
 //! ```
 
