@@ -44,52 +44,79 @@ pub trait DomainEvent {
 pub enum QueryEvent {
     /// A query was received and is about to be processed
     QueryReceived {
+        /// Unique identifier for this event
         event_id: EventId,
+        /// When the event occurred
         timestamp: DateTime<Utc>,
+        /// Unique identifier for the query
         query_id: QueryId,
+        /// The GraphQL query string
         query_string: String,
+        /// Optional operation name
         operation_name: Option<String>,
     },
 
     /// A query passed validation
     QueryValidated {
+        /// Unique identifier for this event
         event_id: EventId,
+        /// When the event occurred
         timestamp: DateTime<Utc>,
+        /// Unique identifier for the query
         query_id: QueryId,
     },
 
     /// A query failed validation
     QueryValidationFailed {
+        /// Unique identifier for this event
         event_id: EventId,
+        /// When the event occurred
         timestamp: DateTime<Utc>,
+        /// Unique identifier for the query
         query_id: QueryId,
+        /// Validation errors that occurred
         errors: Vec<GraphQLError>,
     },
 
     /// A query started execution
     QueryExecutionStarted {
+        /// Unique identifier for this event
         event_id: EventId,
+        /// When the event occurred
         timestamp: DateTime<Utc>,
+        /// Unique identifier for the query
         query_id: QueryId,
+        /// Schema used for execution
         schema_id: SchemaId,
     },
 
     /// A query completed execution successfully
     QueryExecutionCompleted {
+        /// Unique identifier for this event
         event_id: EventId,
+        /// When the event occurred
         timestamp: DateTime<Utc>,
+        /// Unique identifier for the query
         query_id: QueryId,
+        /// Time taken to execute the query
         execution_time: Duration,
+        /// Number of fields resolved
         field_count: usize,
+        /// Size of the result in bytes
         result_size_bytes: usize,
     },
 
     /// A query execution failed with an error
     QueryExecutionFailed {
+        /// Unique identifier for this event
         event_id: EventId,
+        /// When the event occurred
         timestamp: DateTime<Utc>,
+        /// Unique identifier for the query
         query_id: QueryId,
+        /// Time taken before the failure
         execution_time: Duration,
+        /// Error message
         error: String,
     },
 }
@@ -134,41 +161,61 @@ impl DomainEvent for QueryEvent {
 pub enum SchemaEvent {
     /// A new schema was created
     SchemaCreated {
+        /// Unique identifier for this event
         event_id: EventId,
+        /// When the event occurred
         timestamp: DateTime<Utc>,
+        /// Schema identifier
         schema_id: SchemaId,
+        /// Schema version
         version: String,
     },
 
     /// A schema was updated
     SchemaUpdated {
+        /// Unique identifier for this event
         event_id: EventId,
+        /// When the event occurred
         timestamp: DateTime<Utc>,
+        /// Schema identifier
         schema_id: SchemaId,
+        /// Previous schema version
         old_version: String,
+        /// New schema version
         new_version: String,
+        /// Summary of changes made
         changes_summary: String,
     },
 
     /// A schema was validated
     SchemaValidated {
+        /// Unique identifier for this event
         event_id: EventId,
+        /// When the event occurred
         timestamp: DateTime<Utc>,
+        /// Schema identifier
         schema_id: SchemaId,
     },
 
     /// A schema failed validation
     SchemaValidationFailed {
+        /// Unique identifier for this event
         event_id: EventId,
+        /// When the event occurred
         timestamp: DateTime<Utc>,
+        /// Schema identifier
         schema_id: SchemaId,
+        /// Validation errors that occurred
         errors: Vec<GraphQLError>,
     },
 
     /// A schema was deleted
     SchemaDeleted {
+        /// Unique identifier for this event
         event_id: EventId,
+        /// When the event occurred
         timestamp: DateTime<Utc>,
+        /// Schema identifier
         schema_id: SchemaId,
     },
 }
@@ -208,7 +255,9 @@ impl DomainEvent for SchemaEvent {
 /// All possible domain events in the GraphQL system
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GraphQLEvent {
+    /// Query-related events
     Query(QueryEvent),
+    /// Schema-related events
     Schema(SchemaEvent),
 }
 

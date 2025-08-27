@@ -1,27 +1,39 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fmt;
 
 /// Represents a GraphQL type system
 #[derive(Debug, Clone, PartialEq)]
 pub enum GraphQLType {
+    /// Scalar type
     Scalar(ScalarType),
+    /// Object type
     Object(ObjectType),
+    /// Interface type
     Interface(InterfaceType),
+    /// Union type
     Union(UnionType),
+    /// Enum type
     Enum(EnumType),
+    /// Input object type
     InputObject(InputObjectType),
+    /// List wrapper type
     List(Box<GraphQLType>),
+    /// Non-null wrapper type
     NonNull(Box<GraphQLType>),
 }
 
 /// Built-in scalar types in GraphQL
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ScalarType {
+    /// Integer scalar type
     Int,
+    /// Float scalar type  
     Float,
+    /// String scalar type
     String,
+    /// Boolean scalar type
     Boolean,
+    /// ID scalar type
     ID,
     /// Custom scalar type
     Custom(String),
@@ -30,77 +42,109 @@ pub enum ScalarType {
 /// GraphQL Object type definition
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObjectType {
+    /// The object type name
     pub name: String,
+    /// Optional description of the type
     pub description: Option<String>,
+    /// Map of field name to field definitions
     pub fields: HashMap<String, FieldDefinition>,
+    /// List of interfaces this type implements
     pub interfaces: Vec<String>,
 }
 
 /// GraphQL Interface type definition
 #[derive(Debug, Clone, PartialEq)]
 pub struct InterfaceType {
+    /// The interface type name
     pub name: String,
+    /// Optional description of the type
     pub description: Option<String>,
+    /// Map of field name to field definitions
     pub fields: HashMap<String, FieldDefinition>,
 }
 
 /// GraphQL Union type definition
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnionType {
+    /// The union type name
     pub name: String,
+    /// Optional description of the type
     pub description: Option<String>,
+    /// List of types that are members of this union
     pub types: Vec<String>,
 }
 
 /// GraphQL Enum type definition
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumType {
+    /// The enum type name
     pub name: String,
+    /// Optional description of the type
     pub description: Option<String>,
+    /// Map of enum value name to value definition
     pub values: HashMap<String, EnumValue>,
 }
 
 /// GraphQL Enum value definition
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnumValue {
+    /// Optional description of the enum value
     pub description: Option<String>,
+    /// Optional deprecation reason
     pub deprecation_reason: Option<String>,
 }
 
 /// GraphQL Input Object type definition
 #[derive(Debug, Clone, PartialEq)]
 pub struct InputObjectType {
+    /// The input object type name
     pub name: String,
+    /// Optional description of the type
     pub description: Option<String>,
+    /// Map of field name to input field definitions
     pub fields: HashMap<String, InputFieldDefinition>,
 }
 
 /// Field definition in a GraphQL object or interface
 #[derive(Debug, Clone, PartialEq)]
 pub struct FieldDefinition {
+    /// The field name
     pub name: String,
+    /// Optional description of the field
     pub description: Option<String>,
+    /// The type of the field
     pub field_type: GraphQLType,
+    /// Map of argument name to argument definitions
     pub arguments: HashMap<String, InputFieldDefinition>,
+    /// Optional deprecation reason
     pub deprecation_reason: Option<String>,
 }
 
 /// Input field definition used in arguments and input objects
 #[derive(Debug, Clone, PartialEq)]
 pub struct InputFieldDefinition {
+    /// The field name
     pub name: String,
+    /// Optional description of the field
     pub description: Option<String>,
+    /// The type of the field
     pub field_type: GraphQLType,
+    /// Optional default value
     pub default_value: Option<Value>,
 }
 
 /// GraphQL directive definition
 #[derive(Debug, Clone, PartialEq)]
 pub struct DirectiveDefinition {
+    /// The directive name
     pub name: String,
+    /// Optional description of the directive
     pub description: Option<String>,
+    /// Valid locations where this directive can be applied
     pub locations: Vec<DirectiveLocation>,
+    /// Map of argument name to argument definitions
     pub arguments: HashMap<String, InputFieldDefinition>,
+    /// Whether the directive is repeatable
     pub is_repeatable: bool,
 }
 
@@ -108,40 +152,68 @@ pub struct DirectiveDefinition {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DirectiveLocation {
     // Executable Directive Locations
+    /// Query operation
     Query,
+    /// Mutation operation
     Mutation,
+    /// Subscription operation  
     Subscription,
+    /// Field selection
     Field,
+    /// Fragment definition
     FragmentDefinition,
+    /// Fragment spread
     FragmentSpread,
+    /// Inline fragment
     InlineFragment,
+    /// Variable definition
     VariableDefinition,
 
     // Type System Directive Locations
+    /// Schema definition
     Schema,
+    /// Scalar type
     Scalar,
+    /// Object type
     Object,
+    /// Field definition
     FieldDefinition,
+    /// Argument definition
     ArgumentDefinition,
+    /// Interface type
     Interface,
+    /// Union type
     Union,
+    /// Enum type
     Enum,
+    /// Enum value
     EnumValue,
+    /// Input object type
     InputObject,
+    /// Input field definition
     InputFieldDefinition,
 }
 
 /// GraphQL value types
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
+    /// Null value
     Null,
+    /// Integer value
     Int(i64),
+    /// Float value
     Float(f64),
+    /// String value
     String(String),
+    /// Boolean value
     Boolean(bool),
+    /// Enum value
     Enum(String),
+    /// List of values
     List(Vec<Value>),
+    /// Object with string keys and values
     Object(HashMap<String, Value>),
+    /// Variable reference
     Variable(String),
 }
 

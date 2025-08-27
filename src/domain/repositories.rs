@@ -13,20 +13,40 @@ use thiserror::Error;
 /// Errors that can occur during repository operations
 #[derive(Error, Debug)]
 pub enum RepositoryError {
+    /// Schema with the specified ID was not found
     #[error("Schema not found: {id:?}")]
-    SchemaNotFound { id: SchemaId },
+    SchemaNotFound {
+        /// The ID of the schema that was not found
+        id: SchemaId,
+    },
 
+    /// Query with the specified ID was not found
     #[error("Query not found: {id:?}")]
-    QueryNotFound { id: QueryId },
+    QueryNotFound {
+        /// The ID of the query that was not found
+        id: QueryId,
+    },
 
+    /// Error occurred in the storage layer
     #[error("Storage error: {message}")]
-    StorageError { message: String },
+    StorageError {
+        /// Description of the storage error
+        message: String,
+    },
 
+    /// Error occurred during data serialization or deserialization
     #[error("Serialization error: {message}")]
-    SerializationError { message: String },
+    SerializationError {
+        /// Description of the serialization error
+        message: String,
+    },
 
+    /// Error occurred connecting to the storage system
     #[error("Connection error: {message}")]
-    ConnectionError { message: String },
+    ConnectionError {
+        /// Description of the connection error
+        message: String,
+    },
 }
 
 /// Repository for managing GraphQL schemas

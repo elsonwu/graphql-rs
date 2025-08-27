@@ -1,9 +1,8 @@
-//! Infrastructure layer for external concerns
-//!
-//! This layer handles external dependencies like HTTP, persistence, and third-party integrations.
+//! Infrastructure layer providing external services and adapters
 
-pub mod http;
+/// GraphQL lexer module
 pub mod lexer;
+/// GraphQL parser module  
 pub mod parser;
 pub mod persistence;
 

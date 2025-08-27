@@ -15,27 +15,50 @@ use thiserror::Error;
 /// Errors that can occur during parsing
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum ParseError {
+    /// Lexical error during tokenization
     #[error("Lexical error: {0}")]
     LexError(#[from] LexError),
 
+    /// Unexpected token found during parsing
     #[error("Unexpected token: expected {expected}, found {found} at position {position}")]
     UnexpectedToken {
+        /// The expected token type
         expected: String,
+        /// The token that was actually found
         found: String,
+        /// Position in the input where the error occurred
         position: usize,
     },
 
+    /// Unexpected end of input during parsing
     #[error("Unexpected end of input: expected {expected}")]
-    UnexpectedEof { expected: String },
+    UnexpectedEof {
+        /// The expected token type
+        expected: String,
+    },
 
+    /// Invalid syntax error
     #[error("Invalid syntax at position {position}: {message}")]
-    InvalidSyntax { position: usize, message: String },
+    InvalidSyntax {
+        /// Position in the input where the syntax error occurred
+        position: usize,
+        /// Description of the syntax error
+        message: String,
+    },
 
+    /// Duplicate definition error
     #[error("Duplicate definition: {name}")]
-    DuplicateDefinition { name: String },
+    DuplicateDefinition {
+        /// Name of the duplicate definition
+        name: String,
+    },
 
+    /// Invalid type reference error
     #[error("Invalid type reference: {type_name}")]
-    InvalidTypeReference { type_name: String },
+    InvalidTypeReference {
+        /// Name of the invalid type
+        type_name: String,
+    },
 }
 
 /// Parser for GraphQL documents
@@ -77,7 +100,7 @@ impl<'input> Parser<'input> {
             Some(Token::Directive) => self.parse_directive_definition(),
             Some(token) => Err(ParseError::UnexpectedToken {
                 expected: "type system definition".to_string(),
-                found: format!("{}", token),
+                found: format!("{token}"),
                 position: self.lexer.position(),
             }),
             None => Err(ParseError::UnexpectedEof {
@@ -115,7 +138,7 @@ impl<'input> Parser<'input> {
                         _ => {
                             return Err(ParseError::InvalidSyntax {
                                 position: self.lexer.position(),
-                                message: format!("Unknown operation type: {}", operation_type),
+                                message: format!("Unknown operation type: {operation_type}"),
                             })
                         },
                     }
@@ -123,7 +146,7 @@ impl<'input> Parser<'input> {
                 Some(token) => {
                     return Err(ParseError::UnexpectedToken {
                         expected: "operation type".to_string(),
-                        found: format!("{}", token),
+                        found: format!("{token}"),
                         position: self.lexer.position(),
                     })
                 },
@@ -471,7 +494,7 @@ impl<'input> Parser<'input> {
                     _ => {
                         return Err(ParseError::InvalidSyntax {
                             position: self.lexer.position(),
-                            message: format!("Unknown directive location: {}", name),
+                            message: format!("Unknown directive location: {name}"),
                         })
                     },
                 };
@@ -762,29 +785,43 @@ impl SchemaBuilder {
 /// Type system definitions
 #[derive(Debug, Clone)]
 pub enum TypeSystemDefinition {
+    /// Schema definition
     Schema(SchemaDefinition),
+    /// Type definition
     Type(TypeDefinition),
+    /// Directive definition
     Directive(DirectiveDefinition),
 }
 
 /// Schema definition
 #[derive(Debug, Clone)]
 pub struct SchemaDefinition {
+    /// Optional schema description
     pub description: Option<String>,
+    /// Query root type name
     pub query_type: String,
+    /// Optional mutation root type name
     pub mutation_type: Option<String>,
+    /// Optional subscription root type name
     pub subscription_type: Option<String>,
+    /// Applied directives
     pub directives: Vec<String>,
 }
 
 /// Type definitions
 #[derive(Debug, Clone)]
 pub enum TypeDefinition {
+    /// Scalar type definition
     Scalar(ScalarType),
+    /// Object type definition
     Object(ObjectType),
+    /// Interface type definition
     Interface(InterfaceType),
+    /// Union type definition
     Union(UnionType),
+    /// Enum type definition
     Enum(EnumType),
+    /// Input object type definition
     InputObject(InputObjectType),
 }
 

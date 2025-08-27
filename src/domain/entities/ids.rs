@@ -7,14 +7,17 @@ use uuid::Uuid;
 pub struct SchemaId(Uuid);
 
 impl SchemaId {
+    /// Creates a new random schema ID
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
 
+    /// Creates a schema ID from an existing UUID
     pub fn from_uuid(uuid: Uuid) -> Self {
         Self(uuid)
     }
 
+    /// Returns the underlying UUID
     pub fn as_uuid(&self) -> Uuid {
         self.0
     }
@@ -37,14 +40,17 @@ impl Default for SchemaId {
 pub struct QueryId(Uuid);
 
 impl QueryId {
+    /// Creates a new random query ID
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
 
+    /// Creates a query ID from an existing UUID
     pub fn from_uuid(uuid: Uuid) -> Self {
         Self(uuid)
     }
 
+    /// Returns the underlying UUID
     pub fn as_uuid(&self) -> Uuid {
         self.0
     }
@@ -67,14 +73,17 @@ impl Default for QueryId {
 pub struct SchemaVersion(String);
 
 impl SchemaVersion {
+    /// Creates a new schema version with the given version string
     pub fn new(version: impl Into<String>) -> Self {
         Self(version.into())
     }
 
+    /// Returns the version as a string slice
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
+    /// Converts the version to an owned string
     pub fn to_string(&self) -> String {
         self.0.clone()
     }

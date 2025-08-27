@@ -1,22 +1,51 @@
 use crate::domain::entities::schema::{Schema, SchemaError};
 use crate::infrastructure::parser::{ParseError, Parser};
 use std::sync::Arc;
-use thiserror::Error;
 
-/// Errors that can occur in the schema service
-#[derive(Error, Debug)]
+/// Error type for schema service operations
+#[derive(Debug)]
 pub enum SchemaServiceError {
-    #[error("Parse error: {0}")]
-    ParseError(#[from] ParseError),
+    /// Parse error from the GraphQL schema
+    ParseError(ParseError),
 
-    #[error("Schema validation error: {errors:?}")]
-    ValidationError { errors: Vec<SchemaError> },
+    /// Validation error containing multiple schema errors  
+    ValidationError {
+        /// List of schema validation errors
+        errors: Vec<SchemaError>,
+    },
 
-    #[error("Schema not found")]
+    /// Schema not found error
     SchemaNotFound,
 
-    #[error("IO error: {0}")]
-    IoError(#[from] std::io::Error),
+    /// I/O error
+    IoError(std::io::Error),
+}
+
+impl std::fmt::Display for SchemaServiceError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SchemaServiceError::ParseError(e) => write!(f, "Parse error: {}", e),
+            SchemaServiceError::ValidationError { errors } => {
+                write!(f, "Validation error: {} errors found", errors.len())
+            },
+            SchemaServiceError::SchemaNotFound => write!(f, "Schema not found"),
+            SchemaServiceError::IoError(e) => write!(f, "I/O error: {}", e),
+        }
+    }
+}
+
+impl std::error::Error for SchemaServiceError {}
+
+impl From<ParseError> for SchemaServiceError {
+    fn from(err: ParseError) -> Self {
+        SchemaServiceError::ParseError(err)
+    }
+}
+
+impl From<std::io::Error> for SchemaServiceError {
+    fn from(err: std::io::Error) -> Self {
+        SchemaServiceError::IoError(err)
+    }
 }
 
 /// Service for managing GraphQL schemas
@@ -70,7 +99,7 @@ impl SchemaService {
     }
 
     /// Build a schema programmatically
-    pub fn build_schema(&mut self) -> SchemaBuilder {
+    pub fn build_schema(&mut self) -> SchemaBuilder<'_> {
         SchemaBuilder::new(self)
     }
 
@@ -185,8 +214,11 @@ impl<'a> SchemaBuilder<'a> {
 /// Schema introspection result
 #[derive(Debug, Clone)]
 pub struct IntrospectionResult {
+    /// Schema metadata information
     pub schema_info: SchemaInfo,
+    /// List of types in the schema
     pub types: Vec<TypeInfo>,
+    /// List of directives in the schema  
     pub directives: Vec<DirectiveInfo>,
 }
 
@@ -222,21 +254,32 @@ impl IntrospectionResult {
 /// Schema information for introspection
 #[derive(Debug, Clone)]
 pub struct SchemaInfo {
+    /// The root query type name
     pub query_type: String,
+    /// The root mutation type name (optional)
     pub mutation_type: Option<String>,
+    /// The root subscription type name (optional)
     pub subscription_type: Option<String>,
+    /// Schema description (optional)
     pub description: Option<String>,
 }
 
 /// Type information for introspection
 #[derive(Debug, Clone)]
 pub struct TypeInfo {
+    /// The type name
     pub name: String,
+    /// The type kind (SCALAR, OBJECT, etc.)
     pub kind: String,
+    /// The type description (optional)
     pub description: Option<String>,
+    /// Fields of the type (for OBJECT and INTERFACE)
     pub fields: Option<Vec<FieldInfo>>,
+    /// Possible types (for INTERFACE and UNION)
     pub possible_types: Option<Vec<String>>,
+    /// Enum values (for ENUM types)
     pub enum_values: Option<Vec<String>>,
+    /// Input fields (for INPUT_OBJECT types)
     pub input_fields: Option<Vec<String>>,
 }
 
@@ -342,11 +385,17 @@ impl TypeInfo {
 /// Field information for introspection
 #[derive(Debug, Clone)]
 pub struct FieldInfo {
+    /// The field name
     pub name: String,
+    /// The field type name
     pub type_name: String,
+    /// The field description (optional)
     pub description: Option<String>,
+    /// Whether the field is deprecated
     pub is_deprecated: bool,
+    /// The deprecation reason (optional)
     pub deprecation_reason: Option<String>,
+    /// List of field arguments
     pub arguments: Vec<String>,
 }
 
@@ -369,10 +418,15 @@ impl FieldInfo {
 /// Directive information for introspection
 #[derive(Debug, Clone)]
 pub struct DirectiveInfo {
+    /// The directive name
     pub name: String,
+    /// The directive description (optional)
     pub description: Option<String>,
+    /// Valid locations for the directive
     pub locations: Vec<String>,
+    /// List of directive arguments
     pub arguments: Vec<String>,
+    /// Whether the directive is repeatable
     pub is_repeatable: bool,
 }
 
@@ -398,14 +452,23 @@ impl DirectiveInfo {
 /// Schema statistics
 #[derive(Debug, Clone)]
 pub struct SchemaStats {
+    /// Total number of types in the schema
     pub total_types: usize,
+    /// Number of scalar types
     pub scalar_types: usize,
+    /// Number of object types
     pub object_types: usize,
+    /// Number of interface types
     pub interface_types: usize,
+    /// Number of union types  
     pub union_types: usize,
+    /// Number of enum types
     pub enum_types: usize,
+    /// Number of input object types
     pub input_types: usize,
+    /// Total number of fields across all types
     pub total_fields: usize,
+    /// Total number of directives
     pub total_directives: usize,
 }
 
