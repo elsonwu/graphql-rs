@@ -160,7 +160,7 @@ impl TypeReference {
         match self {
             TypeReference::List(_) => true,
             TypeReference::NonNull(inner) => matches!(inner.as_ref(), TypeReference::List(_)),
-            _ => false,
+            TypeReference::Named(_) => false,
         }
     }
 }
