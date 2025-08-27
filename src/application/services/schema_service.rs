@@ -99,7 +99,7 @@ impl SchemaService {
     }
 
     /// Build a schema programmatically
-    pub fn build_schema(&mut self) -> SchemaBuilder {
+    pub fn build_schema(&mut self) -> SchemaBuilder<'_> {
         SchemaBuilder::new(self)
     }
 

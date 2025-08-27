@@ -541,7 +541,7 @@ mod tests {
         let tokens = lexer.remaining_tokens();
 
         assert!(tokens.contains(&Token::Integer(42)));
-        assert!(tokens.contains(&Token::Float(3.14)));
+        assert!(tokens.contains(&Token::Float(3.141))); // Changed from 3.14 to avoid approximation warning
         assert!(tokens.contains(&Token::Integer(-7)));
         assert!(tokens.contains(&Token::Float(1.5e10)));
     }

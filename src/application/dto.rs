@@ -96,10 +96,10 @@ pub struct GraphQLErrorDto {
     pub message: String,
 
     /// Source locations where the error occurred
-    pub locations: Option<Vec<SourceLocationDto>>,
+    pub locations: Option<Vec<SourceLocation>>,
 
     /// Path to the field that caused the error
-    pub path: Option<Vec<PathSegmentDto>>,
+    pub path: Option<Vec<PathSegment>>,
 
     /// Additional error information
     pub extensions: Option<serde_json::Map<String, serde_json::Value>>,
@@ -117,18 +117,21 @@ impl GraphQLErrorDto {
     }
 }
 
-/// Source location DTO
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SourceLocationDto {
+/// Source location information for errors
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SourceLocation {
+    /// Line number in the source
     pub line: u32,
+    /// Column number in the source  
     pub column: u32,
 }
 
-/// Path segment DTO
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum PathSegmentDto {
+/// Path segment in a GraphQL response path
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum PathSegment {
+    /// Field name in the path
     Field(String),
+    /// Array index in the path
     Index(u32),
 }
 
@@ -216,7 +219,7 @@ impl From<crate::domain::value_objects::GraphQLError> for GraphQLErrorDto {
                 error
                     .locations
                     .into_iter()
-                    .map(|loc| SourceLocationDto {
+                    .map(|loc| SourceLocation {
                         line: loc.line,
                         column: loc.column,
                     })
@@ -228,10 +231,10 @@ impl From<crate::domain::value_objects::GraphQLError> for GraphQLErrorDto {
             path.into_iter()
                 .map(|segment| match segment {
                     crate::domain::value_objects::PathSegment::Field(field) => {
-                        PathSegmentDto::Field(field)
+                        PathSegment::Field(field)
                     },
                     crate::domain::value_objects::PathSegment::Index(index) => {
-                        PathSegmentDto::Index(index)
+                        PathSegment::Index(index)
                     },
                 })
                 .collect()

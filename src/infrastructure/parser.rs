@@ -100,7 +100,7 @@ impl<'input> Parser<'input> {
             Some(Token::Directive) => self.parse_directive_definition(),
             Some(token) => Err(ParseError::UnexpectedToken {
                 expected: "type system definition".to_string(),
-                found: format!("{}", token),
+                found: format!("{token}"),
                 position: self.lexer.position(),
             }),
             None => Err(ParseError::UnexpectedEof {
@@ -138,7 +138,7 @@ impl<'input> Parser<'input> {
                         _ => {
                             return Err(ParseError::InvalidSyntax {
                                 position: self.lexer.position(),
-                                message: format!("Unknown operation type: {}", operation_type),
+                                message: format!("Unknown operation type: {operation_type}"),
                             })
                         },
                     }
@@ -146,7 +146,7 @@ impl<'input> Parser<'input> {
                 Some(token) => {
                     return Err(ParseError::UnexpectedToken {
                         expected: "operation type".to_string(),
-                        found: format!("{}", token),
+                        found: format!("{token}"),
                         position: self.lexer.position(),
                     })
                 },
@@ -494,7 +494,7 @@ impl<'input> Parser<'input> {
                     _ => {
                         return Err(ParseError::InvalidSyntax {
                             position: self.lexer.position(),
-                            message: format!("Unknown directive location: {}", name),
+                            message: format!("Unknown directive location: {name}"),
                         })
                     },
                 };
