@@ -16,6 +16,7 @@ pub struct Query {
 
 impl Query {
     /// Create a new Query with the given query string
+    #[must_use]
     pub fn new(query_string: String) -> Self {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -34,6 +35,7 @@ impl Query {
     }
 
     /// Create a new Query with all parameters
+    #[must_use]
     pub fn new_with_params(
         query_string: String,
         variables: Option<serde_json::Value>,
@@ -56,36 +58,43 @@ impl Query {
     }
 
     /// Get the query ID
+    #[must_use]
     pub fn id(&self) -> &QueryId {
         &self.id
     }
 
     /// Get the query string
+    #[must_use]
     pub fn query_string(&self) -> &str {
         &self.query_string
     }
 
     /// Get the variables
+    #[must_use]
     pub fn variables(&self) -> &Option<serde_json::Value> {
         &self.variables
     }
 
     /// Get the operation name
+    #[must_use]
     pub fn operation_name(&self) -> &Option<String> {
         &self.operation_name
     }
 
     /// Get the validation result
+    #[must_use]
     pub fn validation_result(&self) -> &Option<ValidationResult> {
         &self.validation_result
     }
 
     /// Get creation timestamp
+    #[must_use]
     pub fn created_at(&self) -> u64 {
         self.created_at
     }
 
     /// Get update timestamp
+    #[must_use]
     pub fn updated_at(&self) -> u64 {
         self.updated_at
     }
@@ -97,16 +106,19 @@ impl Query {
     }
 
     /// Check if the query is valid
+    #[must_use]
     pub fn is_valid(&self) -> bool {
         matches!(self.validation_result, Some(ValidationResult::Valid))
     }
 
     /// Check if the query has validation errors
+    #[must_use]
     pub fn has_validation_errors(&self) -> bool {
         matches!(self.validation_result, Some(ValidationResult::Invalid(_)))
     }
 
     /// Get validation errors if any
+    #[must_use]
     pub fn validation_errors(&self) -> Vec<GraphQLError> {
         match &self.validation_result {
             Some(ValidationResult::Invalid(errors)) => errors.clone(),
@@ -134,11 +146,13 @@ impl Query {
     }
 
     /// Check if query string is empty
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.query_string.trim().is_empty()
     }
 
     /// Get query complexity (simplified metric based on string length for now)
+    #[must_use]
     pub fn complexity(&self) -> usize {
         self.query_string.len()
     }
@@ -219,7 +233,7 @@ mod tests {
 
     #[test]
     fn test_is_empty() {
-        let empty_query = Query::new("".to_string());
+        let empty_query = Query::new(String::new());
         let whitespace_query = Query::new("   \n\t  ".to_string());
         let valid_query = Query::new("{ hello }".to_string());
 

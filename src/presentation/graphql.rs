@@ -8,6 +8,7 @@ pub struct GraphQLHandler;
 
 impl GraphQLHandler {
     /// Create a new GraphQL handler (placeholder)
+    #[must_use]
     pub fn new() -> Self {
         Self
     }

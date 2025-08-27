@@ -10,6 +10,7 @@ pub struct GraphQLServer {
 
 impl GraphQLServer {
     /// Create a new GraphQL server instance
+    #[must_use]
     pub fn new() -> Self {
         Self {
             // Initialize with default configuration
@@ -17,6 +18,7 @@ impl GraphQLServer {
     }
 
     /// Build the server (placeholder for now)
+    #[must_use]
     pub fn build(self) -> Self {
         // Server building logic will be implemented in later PRs
         self

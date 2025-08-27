@@ -204,9 +204,9 @@ fn test_sdl_parsing() -> Result<(), Box<dyn Error>> {
     let mut parser = Parser::new(sdl);
 
     // Parse individual type definitions
-    let scalar_def = parser.parse_type_system_definition()?;
-    let object_def = parser.parse_type_system_definition()?;
-    let enum_def = parser.parse_type_system_definition()?;
+    let _scalar_def = parser.parse_type_system_definition()?;
+    let _object_def = parser.parse_type_system_definition()?;
+    let _enum_def = parser.parse_type_system_definition()?;
 
     println!("   ✓ Successfully parsed scalar, object, and enum definitions");
 

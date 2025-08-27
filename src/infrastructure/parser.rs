@@ -1,14 +1,9 @@
-use crate::domain::entities::schema::*;
-use crate::domain::entities::types::*;
-use crate::infrastructure::lexer::{LexError, Lexer, Token};
-use nom::{
-    branch::alt,
-    combinator::{map, opt, value},
-    error::{Error as NomError, ErrorKind},
-    multi::{many0, many1, separated_list0, separated_list1},
-    sequence::{delimited, pair, preceded, terminated, tuple},
-    IResult,
+use crate::domain::entities::schema::Schema;
+use crate::domain::entities::types::{
+    DirectiveDefinition, DirectiveLocation, EnumType, EnumValue, FieldDefinition, GraphQLType,
+    InputFieldDefinition, InputObjectType, InterfaceType, ObjectType, ScalarType, UnionType, Value,
 };
+use crate::infrastructure::lexer::{LexError, Lexer, Token};
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -68,6 +63,7 @@ pub struct Parser<'input> {
 
 impl<'input> Parser<'input> {
     /// Create a new parser
+    #[must_use]
     pub fn new(input: &'input str) -> Self {
         Self {
             lexer: Lexer::new(input),
@@ -81,7 +77,7 @@ impl<'input> Parser<'input> {
         // Parse all type definitions
         while self.lexer.current_token().is_some() {
             let definition = self.parse_type_system_definition()?;
-            schema_builder.add_definition(definition)?;
+            schema_builder.add_definition(definition);
         }
 
         schema_builder.build()
@@ -123,26 +119,11 @@ impl<'input> Parser<'input> {
         let mut subscription_type = None;
 
         while !self.is_current_token(&Token::RightBrace) {
-            match self.lexer.current_token() {
-                Some(Token::Name(name)) => {
-                    let operation_type = name.clone();
-                    self.lexer.advance();
-                    self.expect_token(&Token::Colon)?;
-
-                    let type_name = self.parse_named_type()?;
-
-                    match operation_type.as_str() {
-                        "query" => query_type = Some(type_name),
-                        "mutation" => mutation_type = Some(type_name),
-                        "subscription" => subscription_type = Some(type_name),
-                        _ => {
-                            return Err(ParseError::InvalidSyntax {
-                                position: self.lexer.position(),
-                                message: format!("Unknown operation type: {operation_type}"),
-                            })
-                        },
-                    }
-                },
+            let operation_type = match self.lexer.current_token() {
+                Some(Token::Name(name)) => name.clone(),
+                Some(Token::Query) => "query".to_string(),
+                Some(Token::Mutation) => "mutation".to_string(),
+                Some(Token::Subscription) => "subscription".to_string(),
                 Some(token) => {
                     return Err(ParseError::UnexpectedToken {
                         expected: "operation type".to_string(),
@@ -153,6 +134,23 @@ impl<'input> Parser<'input> {
                 None => {
                     return Err(ParseError::UnexpectedEof {
                         expected: "operation type or '}'".to_string(),
+                    })
+                },
+            };
+
+            self.lexer.advance();
+            self.expect_token(&Token::Colon)?;
+
+            let type_name = self.parse_named_type()?;
+
+            match operation_type.as_str() {
+                "query" => query_type = Some(type_name),
+                "mutation" => mutation_type = Some(type_name),
+                "subscription" => subscription_type = Some(type_name),
+                _ => {
+                    return Err(ParseError::InvalidSyntax {
+                        position: self.lexer.position(),
+                        message: format!("Unknown operation type: {operation_type}"),
                     })
                 },
             }
@@ -178,7 +176,7 @@ impl<'input> Parser<'input> {
 
         let name = self.parse_name()?;
         let interfaces = self.parse_implements_interfaces()?;
-        let directives = self.parse_directives()?;
+        let _directives = self.parse_directives()?;
         let fields = self.parse_fields_definition()?;
 
         let object_type = ObjectType {
@@ -198,7 +196,7 @@ impl<'input> Parser<'input> {
         self.expect_token(&Token::Interface)?;
 
         let name = self.parse_name()?;
-        let directives = self.parse_directives()?;
+        let _directives = self.parse_directives()?;
         let fields = self.parse_fields_definition()?;
 
         let interface_type = InterfaceType {
@@ -217,7 +215,7 @@ impl<'input> Parser<'input> {
         self.expect_token(&Token::Union)?;
 
         let name = self.parse_name()?;
-        let directives = self.parse_directives()?;
+        let _directives = self.parse_directives()?;
 
         self.expect_token(&Token::Equals)?;
 
@@ -503,7 +501,7 @@ impl<'input> Parser<'input> {
             },
             Some(token) => Err(ParseError::UnexpectedToken {
                 expected: "directive location".to_string(),
-                found: format!("{}", token),
+                found: format!("{token}"),
                 position: self.lexer.position(),
             }),
             None => Err(ParseError::UnexpectedEof {
@@ -579,7 +577,7 @@ impl<'input> Parser<'input> {
             },
             Some(token) => Err(ParseError::UnexpectedToken {
                 expected: "name".to_string(),
-                found: format!("{}", token),
+                found: format!("{token}"),
                 position: self.lexer.position(),
             }),
             None => Err(ParseError::UnexpectedEof {
@@ -627,7 +625,7 @@ impl<'input> Parser<'input> {
             Some(Token::LeftBrace) => self.parse_object_value(),
             Some(token) => Err(ParseError::UnexpectedToken {
                 expected: "value".to_string(),
-                found: format!("{}", token),
+                found: format!("{token}"),
                 position: self.lexer.position(),
             }),
             None => Err(ParseError::UnexpectedEof {
@@ -722,7 +720,7 @@ impl SchemaBuilder {
         }
     }
 
-    fn add_definition(&mut self, definition: TypeSystemDefinition) -> Result<(), ParseError> {
+    fn add_definition(&mut self, definition: TypeSystemDefinition) {
         match definition {
             TypeSystemDefinition::Schema(schema_def) => {
                 self.query_type = Some(schema_def.query_type);
@@ -750,7 +748,6 @@ impl SchemaBuilder {
                 self.directives.insert(name, directive);
             },
         }
-        Ok(())
     }
 
     fn build(self) -> Result<Schema, ParseError> {
@@ -765,7 +762,7 @@ impl SchemaBuilder {
                 .add_type(type_def)
                 .map_err(|e| ParseError::InvalidSyntax {
                     position: 0,
-                    message: format!("Failed to add type {}: {}", name, e),
+                    message: format!("Failed to add type {name}: {e}"),
                 })?;
         }
 
@@ -774,7 +771,7 @@ impl SchemaBuilder {
                 .add_directive(directive)
                 .map_err(|e| ParseError::InvalidSyntax {
                     position: 0,
-                    message: format!("Failed to add directive {}: {}", name, e),
+                    message: format!("Failed to add directive {name}: {e}"),
                 })?;
         }
 
@@ -847,13 +844,13 @@ mod tests {
 
     #[test]
     fn parse_simple_object_type() {
-        let input = r#"
+        let input = r"
         type User {
             id: ID!
             name: String
             age: Int
         }
-        "#;
+        ";
         let mut parser = Parser::new(input);
 
         let result = parser.parse_type_system_definition();
@@ -872,13 +869,13 @@ mod tests {
 
     #[test]
     fn parse_enum_type() {
-        let input = r#"
+        let input = r"
         enum Status {
             ACTIVE
             INACTIVE
             PENDING
         }
-        "#;
+        ";
         let mut parser = Parser::new(input);
 
         let result = parser.parse_type_system_definition();
@@ -917,12 +914,12 @@ mod tests {
 
     #[test]
     fn parse_schema_definition() {
-        let input = r#"
+        let input = r"
         schema {
             query: Query
             mutation: Mutation
         }
-        "#;
+        ";
         let mut parser = Parser::new(input);
 
         let result = parser.parse_type_system_definition();

@@ -8,6 +8,7 @@ pub struct PersistenceLayer;
 
 impl PersistenceLayer {
     /// Create a new persistence layer (placeholder)
+    #[must_use]
     pub fn new() -> Self {
         Self
     }

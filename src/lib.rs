@@ -17,18 +17,12 @@
 //!
 //! ## Usage
 //!
-//! ```rust
-//! use graphql_rs::GraphQLServer;
+//! ```rust,no_run
+//! use graphql_rs::application::server::GraphQLServer;
 //!
-//! #[tokio::main]
-//! async fn main() {
-//!     let server = GraphQLServer::new()
-//!         .with_schema_from_file("schema.graphql")
-//!         .build()
-//!         .await;
-//!     
-//!     server.listen("127.0.0.1:8000").await;
-//! }
+//! let server = GraphQLServer::new().build();
+//! println!("GraphQL server created: {:?}", std::ptr::addr_of!(server));
+//! ```
 //! ```
 
 #![warn(missing_docs)]
@@ -52,8 +46,6 @@ pub const GRAPHQL_SPEC_VERSION: &str = "October 2021";
 
 #[cfg(test)]
 mod integration_tests {
-    use super::*;
-
     #[tokio::test]
     async fn test_basic_server_creation() {
         // Integration tests will be added as we implement features

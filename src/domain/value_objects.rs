@@ -140,6 +140,7 @@ pub enum TypeReference {
 
 impl TypeReference {
     /// Get the innermost named type
+    #[must_use]
     pub fn innermost_name(&self) -> &str {
         match self {
             TypeReference::Named(name) => name,
@@ -148,11 +149,13 @@ impl TypeReference {
     }
 
     /// Check if this type reference is non-null
+    #[must_use]
     pub fn is_non_null(&self) -> bool {
         matches!(self, TypeReference::NonNull(_))
     }
 
     /// Check if this type reference is a list
+    #[must_use]
     pub fn is_list(&self) -> bool {
         match self {
             TypeReference::List(_) => true,
@@ -175,26 +178,31 @@ pub enum ValidationResult {
 
 impl ValidationResult {
     /// Create a valid result
+    #[must_use]
     pub fn valid() -> Self {
         Self::Valid
     }
 
     /// Create an invalid result with a single error
+    #[must_use]
     pub fn invalid(error: String) -> Self {
         Self::Invalid(vec![GraphQLError::new(error)])
     }
 
     /// Create an invalid result with multiple errors
+    #[must_use]
     pub fn invalid_with_errors(errors: Vec<GraphQLError>) -> Self {
         Self::Invalid(errors)
     }
 
     /// Check if the validation result is valid
+    #[must_use]
     pub fn is_valid(&self) -> bool {
         matches!(self, Self::Valid)
     }
 
     /// Check if the validation result is invalid
+    #[must_use]
     pub fn is_invalid(&self) -> bool {
         matches!(self, Self::Invalid(_))
     }
@@ -215,6 +223,7 @@ pub struct ExecutionResult {
 
 impl ExecutionResult {
     /// Create a successful execution result with data
+    #[must_use]
     pub fn success(data: serde_json::Value) -> Self {
         Self {
             data: Some(data),
@@ -224,6 +233,7 @@ impl ExecutionResult {
     }
 
     /// Create an execution result with errors
+    #[must_use]
     pub fn error(errors: Vec<GraphQLError>) -> Self {
         Self {
             data: None,
@@ -233,6 +243,7 @@ impl ExecutionResult {
     }
 
     /// Add an extension to the result
+    #[must_use]
     pub fn with_extension(mut self, key: String, value: serde_json::Value) -> Self {
         if self.extensions.is_none() {
             self.extensions = Some(serde_json::Map::new());
@@ -279,6 +290,7 @@ pub enum PathSegment {
 
 impl GraphQLError {
     /// Create a new GraphQL error with a message
+    #[must_use]
     pub fn new(message: String) -> Self {
         Self {
             message,
@@ -289,17 +301,20 @@ impl GraphQLError {
     }
 
     /// Create a validation error
+    #[must_use]
     pub fn validation_error(message: String) -> Self {
         Self::new(message)
     }
 
     /// Add a source location to the error
+    #[must_use]
     pub fn with_location(mut self, line: u32, column: u32) -> Self {
         self.locations.push(SourceLocation { line, column });
         self
     }
 
     /// Add a path to the error
+    #[must_use]
     pub fn with_path(mut self, path: Vec<PathSegment>) -> Self {
         self.path = Some(path);
         self

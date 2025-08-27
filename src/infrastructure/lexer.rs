@@ -204,12 +204,12 @@ impl fmt::Display for Token {
             Token::Null => write!(f, "null"),
             Token::True => write!(f, "true"),
             Token::False => write!(f, "false"),
-            Token::String(s) => write!(f, r#""{}""#, s),
-            Token::BlockString(s) => write!(f, "```{}```", s),
-            Token::Integer(i) => write!(f, "{}", i),
-            Token::Float(fl) => write!(f, "{}", fl),
-            Token::Name(name) => write!(f, "{}", name),
-            Token::Comment(c) => write!(f, "#{}", c),
+            Token::String(s) => write!(f, r#""{s}""#),
+            Token::BlockString(s) => write!(f, "```{s}```"),
+            Token::Integer(i) => write!(f, "{i}"),
+            Token::Float(fl) => write!(f, "{fl}"),
+            Token::Name(name) => write!(f, "{name}"),
+            Token::Comment(c) => write!(f, "#{c}"),
             Token::Whitespace => write!(f, " "),
         }
     }
@@ -224,6 +224,7 @@ pub struct Lexer<'input> {
 
 impl<'input> Lexer<'input> {
     /// Create a new lexer for the given input
+    #[must_use]
     pub fn new(input: &'input str) -> Self {
         let mut lexer = Self {
             inner: Token::lexer(input),
@@ -235,21 +236,25 @@ impl<'input> Lexer<'input> {
     }
 
     /// Get the current token without advancing
+    #[must_use]
     pub fn current_token(&self) -> Option<&Token> {
         self.current_token.as_ref()
     }
 
     /// Get the current position in the input
+    #[must_use]
     pub fn position(&self) -> usize {
         self.position
     }
 
     /// Get the span of the current token
+    #[must_use]
     pub fn span(&self) -> std::ops::Range<usize> {
         self.inner.span()
     }
 
     /// Get the slice of text for the current token
+    #[must_use]
     pub fn slice(&self) -> &str {
         self.inner.slice()
     }
@@ -274,17 +279,18 @@ impl<'input> Lexer<'input> {
                 Ok(())
             },
             Some(token) => Err(LexError::UnexpectedToken {
-                expected: format!("{}", expected),
-                found: format!("{}", token),
+                expected: format!("{expected}"),
+                found: format!("{token}"),
                 position: self.position,
             }),
             None => Err(LexError::UnexpectedEof {
-                expected: format!("{}", expected),
+                expected: format!("{expected}"),
             }),
         }
     }
 
     /// Check if the current token matches the expected token without advancing
+    #[must_use]
     pub fn is_current(&self, expected: &Token) -> bool {
         match &self.current_token {
             Some(token) => std::mem::discriminant(token) == std::mem::discriminant(expected),
@@ -343,15 +349,14 @@ impl fmt::Display for LexError {
             } => {
                 write!(
                     f,
-                    "Expected {} but found {} at position {}",
-                    expected, found, position
+                    "Expected {expected} but found {found} at position {position}"
                 )
             },
             LexError::UnexpectedEof { expected } => {
-                write!(f, "Unexpected end of input, expected {}", expected)
+                write!(f, "Unexpected end of input, expected {expected}")
             },
             LexError::InvalidToken { position } => {
-                write!(f, "Invalid token at position {}", position)
+                write!(f, "Invalid token at position {position}")
             },
         }
     }
@@ -362,6 +367,7 @@ impl std::error::Error for LexError {}
 // Helper functions for token extraction
 
 /// Extract string literal content
+#[allow(clippy::unnecessary_wraps)]
 fn string_literal(lex: &mut logos::Lexer<Token>) -> Option<String> {
     let slice = lex.slice();
     // Remove quotes and process escape sequences
@@ -370,6 +376,7 @@ fn string_literal(lex: &mut logos::Lexer<Token>) -> Option<String> {
 }
 
 /// Extract block string literal content
+#[allow(clippy::unnecessary_wraps)]
 fn block_string_literal(lex: &mut logos::Lexer<Token>) -> Option<String> {
     let slice = lex.slice();
     // Remove triple quotes
@@ -388,6 +395,7 @@ fn float_literal(lex: &mut logos::Lexer<Token>) -> Option<f64> {
 }
 
 /// Extract comment content
+#[allow(clippy::unnecessary_wraps)]
 fn comment(lex: &mut logos::Lexer<Token>) -> Option<String> {
     let slice = lex.slice();
     // Remove # prefix
@@ -487,14 +495,14 @@ mod tests {
 
     #[test]
     fn tokenize_simple_query() {
-        let input = r#"
+        let input = r"
         query GetUser($id: ID!) {
             user(id: $id) {
                 name
                 email
             }
         }
-        "#;
+        ";
 
         let mut lexer = Lexer::new(input);
         let tokens = lexer.remaining_tokens();
@@ -520,10 +528,10 @@ mod tests {
 
     #[test]
     fn tokenize_block_string_literal() {
-        let input = r#"```
+        let input = r"```
         This is a block string
         with multiple lines
-        ```"#;
+        ```";
         let lexer = Lexer::new(input);
 
         if let Some(Token::BlockString(content)) = lexer.current_token() {
@@ -536,12 +544,12 @@ mod tests {
 
     #[test]
     fn tokenize_numbers() {
-        let input = "42 3.14 -7 1.5e10";
+        let input = "42 3.1416 -7 1.5e10"; // Using a value that doesn't approximate PI
         let mut lexer = Lexer::new(input);
         let tokens = lexer.remaining_tokens();
 
         assert!(tokens.contains(&Token::Integer(42)));
-        assert!(tokens.contains(&Token::Float(3.141))); // Changed from 3.14 to avoid approximation warning
+        assert!(tokens.contains(&Token::Float(3.1416))); // Using a value that doesn't approximate PI
         assert!(tokens.contains(&Token::Integer(-7)));
         assert!(tokens.contains(&Token::Float(1.5e10)));
     }
@@ -566,13 +574,13 @@ mod tests {
 
     #[test]
     fn tokenize_comments() {
-        let input = r#"
+        let input = r"
         # This is a comment
         type User {
             # Another comment
             name: String
         }
-        "#;
+        ";
         let mut lexer = Lexer::new(input);
         let tokens = lexer.remaining_tokens();
 
@@ -604,8 +612,8 @@ mod tests {
 
     #[test]
     fn process_string_escapes_test() {
-        assert_eq!(process_string_escapes(r#"Hello\nWorld"#), "Hello\nWorld");
+        assert_eq!(process_string_escapes(r"Hello\nWorld"), "Hello\nWorld");
         assert_eq!(process_string_escapes(r#"Quote: \""#), r#"Quote: ""#);
-        assert_eq!(process_string_escapes(r#"Unicode: \u0041"#), "Unicode: A");
+        assert_eq!(process_string_escapes(r"Unicode: \u0041"), "Unicode: A");
     }
 }

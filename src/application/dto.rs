@@ -21,6 +21,7 @@ pub struct GraphQLRequest {
 
 impl GraphQLRequest {
     /// Create a new GraphQL request with just a query string
+    #[must_use]
     pub fn new(query: String) -> Self {
         Self {
             query,
@@ -30,18 +31,21 @@ impl GraphQLRequest {
     }
 
     /// Add an operation name to the request
+    #[must_use]
     pub fn with_operation_name(mut self, operation_name: String) -> Self {
         self.operation_name = Some(operation_name);
         self
     }
 
     /// Add variables to the request
+    #[must_use]
     pub fn with_variables(mut self, variables: HashMap<String, serde_json::Value>) -> Self {
         self.variables = Some(variables);
         self
     }
 
-    /// Get the variables, returning an empty HashMap if none are provided
+    /// Get the variables, returning an empty `HashMap` if none are provided
+    #[must_use]
     pub fn variables(&self) -> HashMap<String, serde_json::Value> {
         self.variables.clone().unwrap_or_default()
     }
@@ -62,6 +66,7 @@ pub struct GraphQLResponse {
 
 impl GraphQLResponse {
     /// Create a successful response with data
+    #[must_use]
     pub fn success(data: serde_json::Value) -> Self {
         Self {
             data: Some(data),
@@ -71,6 +76,7 @@ impl GraphQLResponse {
     }
 
     /// Create an error response
+    #[must_use]
     pub fn error(errors: Vec<GraphQLErrorDto>) -> Self {
         Self {
             data: None,
@@ -80,6 +86,7 @@ impl GraphQLResponse {
     }
 
     /// Add extensions to the response
+    #[must_use]
     pub fn with_extensions(
         mut self,
         extensions: serde_json::Map<String, serde_json::Value>,
@@ -107,6 +114,7 @@ pub struct GraphQLErrorDto {
 
 impl GraphQLErrorDto {
     /// Create a new GraphQL error with a message
+    #[must_use]
     pub fn new(message: String) -> Self {
         Self {
             message,
@@ -182,6 +190,7 @@ pub struct HealthCheckResponse {
 
 impl HealthCheckResponse {
     /// Create a healthy response
+    #[must_use]
     pub fn healthy() -> Self {
         Self {
             status: "healthy".to_string(),
@@ -192,7 +201,7 @@ impl HealthCheckResponse {
     }
 }
 
-/// Convert from domain ExecutionResult to DTO GraphQLResponse
+/// Convert from domain `ExecutionResult` to DTO `GraphQLResponse`
 impl From<crate::domain::value_objects::ExecutionResult> for GraphQLResponse {
     fn from(result: crate::domain::value_objects::ExecutionResult) -> Self {
         let errors = if result.errors.is_empty() {
@@ -209,7 +218,7 @@ impl From<crate::domain::value_objects::ExecutionResult> for GraphQLResponse {
     }
 }
 
-/// Convert from domain GraphQLError to DTO
+/// Convert from domain `GraphQLError` to DTO
 impl From<crate::domain::value_objects::GraphQLError> for GraphQLErrorDto {
     fn from(error: crate::domain::value_objects::GraphQLError) -> Self {
         let locations = if error.locations.is_empty() {
