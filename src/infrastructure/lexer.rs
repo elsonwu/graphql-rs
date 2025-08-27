@@ -5,126 +5,165 @@ use std::fmt;
 #[derive(Logos, Debug, PartialEq, Clone)]
 pub enum Token {
     // Punctuation
+    /// Exclamation mark token '!'
     #[token("!")]
     Bang,
 
+    /// Dollar sign token '$'
     #[token("$")]
     Dollar,
 
+    /// Left parenthesis token '('
     #[token("(")]
     LeftParen,
 
+    /// Right parenthesis token ')'
     #[token(")")]
     RightParen,
 
+    /// Spread operator token '...'
     #[token("...")]
     Spread,
 
+    /// Colon token ':'
     #[token(":")]
     Colon,
 
+    /// Equals token '='
     #[token("=")]
     Equals,
 
+    /// At symbol token '@'
     #[token("@")]
     At,
 
+    /// Left square bracket token '['
     #[token("[")]
     LeftBracket,
 
+    /// Right square bracket token ']'
     #[token("]")]
     RightBracket,
 
+    /// Left curly brace token '{'
     #[token("{")]
     LeftBrace,
 
+    /// Pipe token '|'
     #[token("|")]
     Pipe,
 
+    /// Right curly brace token '}'
     #[token("}")]
     RightBrace,
 
     // Keywords
+    /// Query keyword token 'query'
     #[token("query")]
     Query,
 
+    /// Mutation keyword token 'mutation'
     #[token("mutation")]
     Mutation,
 
+    /// Subscription keyword token 'subscription'
     #[token("subscription")]
     Subscription,
 
+    /// Fragment keyword token 'fragment'
     #[token("fragment")]
     Fragment,
 
+    /// Type keyword token 'type'
     #[token("type")]
     Type,
 
+    /// Implements keyword token 'implements'
     #[token("implements")]
     Implements,
 
+    /// Interface keyword token 'interface'
     #[token("interface")]
     Interface,
 
+    /// Union keyword token 'union'
     #[token("union")]
     Union,
 
+    /// Scalar keyword token 'scalar'
     #[token("scalar")]
     Scalar,
 
+    /// Enum keyword token 'enum'
     #[token("enum")]
     Enum,
 
+    /// Input keyword token 'input'
     #[token("input")]
     Input,
 
+    /// Extend keyword token 'extend'
     #[token("extend")]
     Extend,
 
+    /// Schema keyword token 'schema'
     #[token("schema")]
     Schema,
 
+    /// Directive keyword token 'directive'
     #[token("directive")]
     Directive,
 
+    /// Repeatable keyword token 'repeatable'
     #[token("repeatable")]
     Repeatable,
 
+    /// On keyword token 'on'
     #[token("on")]
     On,
 
+    /// Null literal token 'null'
     #[token("null")]
     Null,
 
+    /// True literal token 'true'
     #[token("true")]
     True,
 
+    /// False literal token 'false'
     #[token("false")]
     False,
 
     // Literals
+    /// String literal token
     #[regex(r#""([^"\\]|\\.)*""#, string_literal)]
     String(String),
 
+    /// Block string literal token
     #[regex(r#"```([^`]|`[^`]|``[^`])*```"#, block_string_literal)]
     BlockString(String),
 
+    /// Integer literal token
     #[regex(r"-?(?:0|[1-9]\d*)", integer_literal)]
     Integer(i64),
 
+    /// Float literal token
     #[regex(r"-?(?:0|[1-9]\d*)\.(?:\d+)(?:[eE][+-]?\d+)?", float_literal)]
     #[regex(r"-?(?:0|[1-9]\d*)(?:[eE][+-]?\d+)", float_literal)]
     Float(f64),
 
     // Names (must come after keywords)
+    /// Name token (identifier)
     #[regex(r"[_A-Za-z][_0-9A-Za-z]*", |lex| lex.slice().to_string())]
     Name(String),
 
     // Comments
+    /// Comment token
     #[regex(r"#[^\r\n]*", comment)]
     Comment(String),
 
     // Whitespace (ignored)
+    /// Whitespace token (automatically skipped)
     #[regex(r"[ \t\r\n,]+", logos::skip)]
     Whitespace,
     // Error token for invalid input
@@ -256,6 +295,13 @@ impl<'input> Lexer<'input> {
     /// Consume all remaining tokens
     pub fn remaining_tokens(&mut self) -> Vec<Token> {
         let mut tokens = Vec::new();
+
+        // Add the current token if it exists
+        if let Some(token) = &self.current_token {
+            tokens.push(token.clone());
+        }
+
+        // Add all remaining tokens
         while let Some(token) = self.advance() {
             tokens.push(token);
         }
@@ -266,15 +312,23 @@ impl<'input> Lexer<'input> {
 /// Errors that can occur during lexical analysis
 #[derive(Debug, Clone, PartialEq)]
 pub enum LexError {
+    /// Unexpected token found during parsing
     UnexpectedToken {
+        /// The expected token type
         expected: String,
+        /// The token that was actually found
         found: String,
+        /// Position in the input where the error occurred
         position: usize,
     },
+    /// Unexpected end of file during parsing
     UnexpectedEof {
+        /// The expected token type
         expected: String,
     },
+    /// Invalid token that could not be recognized
     InvalidToken {
+        /// Position in the input where the invalid token was found
         position: usize,
     },
 }
@@ -456,7 +510,7 @@ mod tests {
     #[test]
     fn tokenize_string_literal() {
         let input = r#""Hello, World!""#;
-        let mut lexer = Lexer::new(input);
+        let lexer = Lexer::new(input);
 
         assert_eq!(
             lexer.current_token(),
@@ -470,7 +524,7 @@ mod tests {
         This is a block string
         with multiple lines
         ```"#;
-        let mut lexer = Lexer::new(input);
+        let lexer = Lexer::new(input);
 
         if let Some(Token::BlockString(content)) = lexer.current_token() {
             assert!(content.contains("This is a block string"));

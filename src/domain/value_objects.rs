@@ -25,75 +25,105 @@ pub enum TypeDefinition {
 /// Scalar type definition
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScalarTypeDefinition {
+    /// Name of the scalar type
     pub name: String,
+    /// Optional description of the scalar type
     pub description: Option<String>,
+    /// Whether this is a built-in GraphQL scalar
     pub is_builtin: bool,
 }
 
 /// Object type definition
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObjectTypeDefinition {
+    /// Name of the object type
     pub name: String,
+    /// Optional description of the object type
     pub description: Option<String>,
+    /// Fields defined on this object type
     pub fields: IndexMap<String, FieldDefinition>,
+    /// Interfaces implemented by this object type
     pub interfaces: Vec<String>,
 }
 
 /// Interface type definition
 #[derive(Debug, Clone, PartialEq)]
 pub struct InterfaceTypeDefinition {
+    /// Name of the interface type
     pub name: String,
+    /// Optional description of the interface type
     pub description: Option<String>,
+    /// Fields defined on this interface type
     pub fields: IndexMap<String, FieldDefinition>,
 }
 
 /// Union type definition
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnionTypeDefinition {
+    /// Name of the union type
     pub name: String,
+    /// Optional description of the union type
     pub description: Option<String>,
+    /// Object types that are part of this union
     pub types: Vec<String>,
 }
 
 /// Enum type definition
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumTypeDefinition {
+    /// Name of the enum type
     pub name: String,
+    /// Optional description of the enum type
     pub description: Option<String>,
+    /// Values defined in this enum
     pub values: IndexMap<String, EnumValueDefinition>,
 }
 
 /// Input object type definition
 #[derive(Debug, Clone, PartialEq)]
 pub struct InputObjectTypeDefinition {
+    /// Name of the input object type
     pub name: String,
+    /// Optional description of the input object type
     pub description: Option<String>,
+    /// Fields defined in this input object
     pub fields: IndexMap<String, InputValueDefinition>,
 }
 
 /// Field definition within object or interface types
 #[derive(Debug, Clone, PartialEq)]
 pub struct FieldDefinition {
+    /// Name of the field
     pub name: String,
+    /// Optional description of the field
     pub description: Option<String>,
+    /// Type of the field
     pub type_reference: TypeReference,
+    /// Arguments accepted by the field
     pub arguments: IndexMap<String, InputValueDefinition>,
 }
 
 /// Enum value definition
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumValueDefinition {
+    /// Name of the enum value
     pub name: String,
+    /// Optional description of the enum value
     pub description: Option<String>,
+    /// Optional deprecation reason
     pub deprecation_reason: Option<String>,
 }
 
 /// Input value definition for arguments and input object fields
 #[derive(Debug, Clone, PartialEq)]
 pub struct InputValueDefinition {
+    /// Name of the input value
     pub name: String,
+    /// Optional description of the input value
     pub description: Option<String>,
+    /// Type of the input value
     pub type_reference: TypeReference,
+    /// Default value if not provided
     pub default_value: Option<serde_json::Value>,
 }
 
@@ -231,7 +261,9 @@ pub struct GraphQLError {
 /// Source location in the GraphQL query
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SourceLocation {
+    /// Line number in the GraphQL query
     pub line: u32,
+    /// Column number in the GraphQL query
     pub column: u32,
 }
 
@@ -239,7 +271,9 @@ pub struct SourceLocation {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum PathSegment {
+    /// Field name in the path
     Field(String),
+    /// Array index in the path
     Index(u32),
 }
 

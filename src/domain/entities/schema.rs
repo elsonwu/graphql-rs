@@ -29,55 +29,79 @@ pub struct Schema {
 /// Errors that can occur during schema operations
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum SchemaError {
+    /// Type not found error
     #[error("Type '{0}' not found in schema")]
     TypeNotFound(String),
 
+    /// Query type is required but not specified
     #[error("Query root type is required but not specified")]
     QueryTypeRequired,
 
+    /// Invalid root type specification
     #[error("Root type '{0}' is not an Object type")]
     InvalidRootType(String),
 
+    /// Circular reference detected
     #[error("Circular reference detected in type '{0}'")]
     CircularReference(String),
 
+    /// Invalid interface implementation
     #[error("Interface '{interface}' not implemented correctly by type '{implementor}': {reason}")]
     InvalidInterfaceImplementation {
+        /// The interface being implemented
         interface: String,
+        /// The type implementing the interface
         implementor: String,
+        /// Reason for the error
         reason: String,
     },
 
+    /// Invalid union member
     #[error("Union type '{union}' contains invalid member type '{member}': {reason}")]
     InvalidUnionMember {
+        /// The union type
         union: String,
+        /// The member type
         member: String,
+        /// Reason for the error
         reason: String,
     },
 
+    /// Invalid field type
     #[error("Field '{field}' in type '{type_name}' has invalid type: {reason}")]
     InvalidFieldType {
+        /// The containing type
         type_name: String,
+        /// The field name
         field: String,
+        /// Reason for the error
         reason: String,
     },
 
+    /// Invalid argument type
     #[error(
         "Argument '{argument}' in field '{field}' of type '{type_name}' has invalid type: {reason}"
     )]
     InvalidArgumentType {
+        /// The containing type
         type_name: String,
+        /// The field name
         field: String,
+        /// The argument name
         argument: String,
+        /// Reason for the error
         reason: String,
     },
 
+    /// Directive not found
     #[error("Directive '{0}' not found in schema")]
     DirectiveNotFound(String),
 
+    /// Duplicate type definition
     #[error("Duplicate type definition: '{0}'")]
     DuplicateType(String),
 
+    /// Duplicate directive definition
     #[error("Duplicate directive definition: '{0}'")]
     DuplicateDirective(String),
 }

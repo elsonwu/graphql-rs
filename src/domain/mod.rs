@@ -1,9 +1,9 @@
-//! Domain // Re-export main domain entities for easier access
-// pub use entities::{Schema, Query}; // Will be implemented in later PRsyer containing core business logic and entities
+//! Domain layer containing core business logic and entities
 //!
 //! This module contains the pure domain logic without any external dependencies.
 //! It represents the core GraphQL concepts and business rules.
 
+/// Entity module containing domain entities
 pub mod entities;
 pub mod events;
 pub mod repositories;
