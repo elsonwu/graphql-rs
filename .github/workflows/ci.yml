@@ -67,13 +67,17 @@ jobs:
         run: cargo install cargo-tarpaulin
 
       - name: Generate coverage report
-        run: cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out html
+        run: |
+          cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out html --output-dir coverage
+          echo "Coverage report generated in coverage/tarpaulin-report.html"
+          echo "📊 Coverage Summary:"
+          cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out stdout
 
-      - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: tarpaulin-report.html
+      - name: Display coverage info
+        run: |
+          echo "✅ Coverage report generated successfully"
+          echo "🔍 You can download the coverage/ directory to view the HTML report locally"
+          echo "📈 Coverage data is available in CI logs above (not uploaded to third parties)"
 
   security-audit:
     name: Security Audit
