@@ -1,0 +1,11 @@
+# Clippy configuration for graphql-rs
+# Allow certain lints to focus on critical issues
+
+# Configuration for sensible clippy checks
+msrv = "1.70.0"
+
+# Allow format string optimizations (these are stylistic improvements)
+avoid-breaking-exported-api = false
+
+# Allow missing must_use attributes - these are quality of life improvements
+# but not critical for functionality

@@ -393,7 +393,7 @@ impl Schema {
     }
 
     /// Validate a single type definition
-    fn validate_type(&self, name: &str, type_def: &GraphQLType) -> Result<(), Vec<SchemaError>> {
+    fn validate_type(&self, _name: &str, type_def: &GraphQLType) -> Result<(), Vec<SchemaError>> {
         let mut errors = Vec::new();
 
         match type_def {
@@ -591,6 +591,7 @@ impl Schema {
     }
 
     /// Check for circular references in the type system
+    #[allow(dead_code)]
     fn check_circular_references(&self) -> Result<(), Vec<SchemaError>> {
         let mut errors = Vec::new();
         let mut visited = std::collections::HashSet::new();
@@ -614,6 +615,7 @@ impl Schema {
     }
 
     /// Helper method for circular reference detection
+    #[allow(dead_code)]
     fn visit_type_for_cycles(
         &self,
         type_name: &str,

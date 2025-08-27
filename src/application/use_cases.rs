@@ -1,14 +1,11 @@
 //! Use cases representing application-level business operations
 
-use crate::{
-    application::dto::{GraphQLRequest, GraphQLResponse},
-    domain::{
-        entities::{query::Query, schema::Schema},
-        events::{EventId, EventPublisher, GraphQLEvent, QueryEvent, SchemaEvent},
-        repositories::{QueryRepository, SchemaRepository},
-        services::{QueryExecution, QueryExecutor, QueryValidator, SchemaValidator},
-        value_objects::{ExecutionResult, ValidationResult},
-    },
+use crate::domain::{
+    entities::{query::Query, schema::Schema},
+    events::{EventId, EventPublisher, GraphQLEvent, QueryEvent, SchemaEvent},
+    repositories::{QueryRepository, SchemaRepository},
+    services::{QueryExecution, QueryExecutor, QueryValidator, SchemaValidator},
+    value_objects::{ExecutionResult, ValidationResult},
 };
 use chrono::Utc;
 use std::sync::Arc;

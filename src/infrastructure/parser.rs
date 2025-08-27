@@ -1,14 +1,9 @@
-use crate::domain::entities::schema::*;
-use crate::domain::entities::types::*;
-use crate::infrastructure::lexer::{LexError, Lexer, Token};
-use nom::{
-    branch::alt,
-    combinator::{map, opt, value},
-    error::{Error as NomError, ErrorKind},
-    multi::{many0, many1, separated_list0, separated_list1},
-    sequence::{delimited, pair, preceded, terminated, tuple},
-    IResult,
+use crate::domain::entities::schema::Schema;
+use crate::domain::entities::types::{
+    DirectiveDefinition, DirectiveLocation, EnumType, EnumValue, FieldDefinition, GraphQLType,
+    InputFieldDefinition, InputObjectType, InterfaceType, ObjectType, ScalarType, UnionType, Value,
 };
+use crate::infrastructure::lexer::{LexError, Lexer, Token};
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -180,7 +175,7 @@ impl<'input> Parser<'input> {
 
         let name = self.parse_name()?;
         let interfaces = self.parse_implements_interfaces()?;
-        let directives = self.parse_directives()?;
+        let _directives = self.parse_directives()?;
         let fields = self.parse_fields_definition()?;
 
         let object_type = ObjectType {
@@ -200,7 +195,7 @@ impl<'input> Parser<'input> {
         self.expect_token(&Token::Interface)?;
 
         let name = self.parse_name()?;
-        let directives = self.parse_directives()?;
+        let _directives = self.parse_directives()?;
         let fields = self.parse_fields_definition()?;
 
         let interface_type = InterfaceType {
@@ -219,7 +214,7 @@ impl<'input> Parser<'input> {
         self.expect_token(&Token::Union)?;
 
         let name = self.parse_name()?;
-        let directives = self.parse_directives()?;
+        let _directives = self.parse_directives()?;
 
         self.expect_token(&Token::Equals)?;
 

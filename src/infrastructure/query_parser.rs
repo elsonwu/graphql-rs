@@ -37,124 +37,173 @@ pub enum QueryParseError {
 /// GraphQL Document representing a parsed query
 #[derive(Debug, Clone, PartialEq)]
 pub struct Document {
+    /// List of definitions (operations and fragments) in the document
     pub definitions: Vec<Definition>,
 }
 
 /// Top-level definition in a GraphQL document
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
+    /// An operation definition (query, mutation, subscription)
     Operation(OperationDefinition),
+    /// A fragment definition
     Fragment(FragmentDefinition),
 }
 
 /// GraphQL operation definition (query, mutation, subscription)
 #[derive(Debug, Clone, PartialEq)]
 pub struct OperationDefinition {
+    /// The type of operation (Query, Mutation, Subscription)
     pub operation_type: OperationType,
+    /// Optional name of the operation
     pub name: Option<String>,
+    /// Variable definitions for the operation
     pub variable_definitions: Vec<VariableDefinition>,
+    /// Directives applied to the operation
     pub directives: Vec<Directive>,
+    /// The selection set defining what fields to query
     pub selection_set: SelectionSet,
 }
 
 /// Type of GraphQL operation
 #[derive(Debug, Clone, PartialEq)]
 pub enum OperationType {
+    /// A query operation for reading data
     Query,
+    /// A mutation operation for writing data
     Mutation,
+    /// A subscription operation for real-time data
     Subscription,
 }
 
 /// Variable definition in an operation
 #[derive(Debug, Clone, PartialEq)]
 pub struct VariableDefinition {
+    /// The variable name (without the $ prefix)
     pub variable: String,
+    /// The type of the variable
     pub type_: TypeRef,
+    /// Optional default value for the variable
     pub default_value: Option<Value>,
+    /// Directives applied to the variable
     pub directives: Vec<Directive>,
 }
 
 /// GraphQL type reference
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeRef {
+    /// A named type (e.g., String, Int, User)
     Named(String),
+    /// A list type (e.g., [String])
     List(Box<TypeRef>),
+    /// A non-null type (e.g., String!)
     NonNull(Box<TypeRef>),
 }
 
 /// GraphQL selection set (fields in braces)
 #[derive(Debug, Clone, PartialEq)]
 pub struct SelectionSet {
+    /// List of selections (fields, fragments) in the set
     pub selections: Vec<Selection>,
 }
 
 /// Individual selection within a selection set
 #[derive(Debug, Clone, PartialEq)]
 pub enum Selection {
+    /// A field selection
     Field(Field),
+    /// An inline fragment selection
     InlineFragment(InlineFragment),
+    /// A fragment spread selection
     FragmentSpread(FragmentSpread),
 }
 
 /// Field selection
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
+    /// Optional alias for the field
     pub alias: Option<String>,
+    /// Name of the field
     pub name: String,
+    /// Arguments passed to the field
     pub arguments: Vec<Argument>,
+    /// Directives applied to the field
     pub directives: Vec<Directive>,
+    /// Optional nested selection set
     pub selection_set: Option<SelectionSet>,
 }
 
 /// Field argument
 #[derive(Debug, Clone, PartialEq)]
 pub struct Argument {
+    /// Name of the argument
     pub name: String,
+    /// Value of the argument
     pub value: Value,
 }
 
 /// Inline fragment
 #[derive(Debug, Clone, PartialEq)]
 pub struct InlineFragment {
+    /// Optional type condition for the fragment
     pub type_condition: Option<String>,
+    /// Directives applied to the fragment
     pub directives: Vec<Directive>,
+    /// Selection set for the fragment
     pub selection_set: SelectionSet,
 }
 
 /// Fragment spread
 #[derive(Debug, Clone, PartialEq)]
 pub struct FragmentSpread {
+    /// Name of the fragment to spread
     pub name: String,
+    /// Directives applied to the fragment spread
     pub directives: Vec<Directive>,
 }
 
 /// Fragment definition
 #[derive(Debug, Clone, PartialEq)]
 pub struct FragmentDefinition {
+    /// Name of the fragment
     pub name: String,
+    /// Type condition for the fragment
     pub type_condition: String,
+    /// Directives applied to the fragment
     pub directives: Vec<Directive>,
+    /// Selection set for the fragment
     pub selection_set: SelectionSet,
 }
 
 /// Directive application
 #[derive(Debug, Clone, PartialEq)]
 pub struct Directive {
+    /// Name of the directive
     pub name: String,
+    /// Arguments for the directive
     pub arguments: Vec<Argument>,
 }
 
 /// GraphQL value
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
+    /// A variable reference
     Variable(String),
+    /// An integer value
     Int(i32),
+    /// A floating-point value
     Float(f64),
+    /// A string value
     String(String),
+    /// A boolean value
     Boolean(bool),
+    /// A null value
     Null,
+    /// An enum value
     Enum(String),
+    /// A list of values
     List(Vec<Value>),
+    /// An object with key-value pairs
     Object(HashMap<String, Value>),
 }
 
@@ -185,7 +234,7 @@ impl<'input> QueryParser<'input> {
     /// Parse a definition (operation or fragment)
     fn parse_definition(&mut self) -> Result<Definition, QueryParseError> {
         match self.lexer.current_token() {
-            Some(Token::Query) | Some(Token::Mutation) | Some(Token::Subscription) => {
+            Some(Token::Query | Token::Mutation | Token::Subscription) => {
                 Ok(Definition::Operation(self.parse_operation_definition()?))
             },
             Some(Token::Fragment) => Ok(Definition::Fragment(self.parse_fragment_definition()?)),

@@ -67,12 +67,13 @@ jobs:
         run: cargo install cargo-tarpaulin
 
       - name: Generate coverage report
-        run: cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out xml
+        run: cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out html
 
-      - name: Upload to codecov.io
-        uses: codecov/codecov-action@v3
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v3
         with:
-          fail_ci_if_error: true
+          name: coverage-report
+          path: tarpaulin-report.html
 
   security-audit:
     name: Security Audit
