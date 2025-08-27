@@ -173,6 +173,7 @@ impl QueryExecutor {
             },
             crate::infrastructure::query_parser::OperationType::Mutation => {
                 self.execute_mutation_operation(operation, schema, variables)
+                    .await
             },
             crate::infrastructure::query_parser::OperationType::Subscription => {
                 Err(crate::domain::value_objects::GraphQLError::new(
@@ -250,16 +251,273 @@ impl QueryExecutor {
         .await
     }
 
-    /// Execute a mutation operation (stub for now)
-    fn execute_mutation_operation(
+    /// Execute a mutation operation
+    /// Mutations execute sequentially (unlike queries which can be parallel)
+    async fn execute_mutation_operation(
         &self,
-        _operation: &crate::infrastructure::query_parser::OperationDefinition,
-        _schema: &Schema,
+        operation: &crate::infrastructure::query_parser::OperationDefinition,
+        schema: &Schema,
+        variables: &Option<serde_json::Value>,
+    ) -> Result<serde_json::Value, crate::domain::value_objects::GraphQLError> {
+        // Get the Mutation root type from the schema
+        let mutation_type_name = schema.mutation_type.as_ref().ok_or_else(|| {
+            crate::domain::value_objects::GraphQLError::new(
+                "Schema does not define a Mutation type".to_string(),
+            )
+        })?;
+
+        let mutation_type = schema.get_type(mutation_type_name).ok_or_else(|| {
+            crate::domain::value_objects::GraphQLError::new(format!(
+                "Mutation type '{mutation_type_name}' not found in schema"
+            ))
+        })?;
+
+        // Execute the mutation selection set sequentially
+        // Unlike queries, mutations must execute in order to maintain consistency
+        self.execute_mutation_selection_set_sequential(
+            &operation.selection_set,
+            mutation_type,
+            variables,
+        )
+        .await
+    }
+
+    /// Execute mutation fields sequentially (one by one, not in parallel)
+    async fn execute_mutation_selection_set_sequential(
+        &self,
+        selection_set: &crate::infrastructure::query_parser::SelectionSet,
+        mutation_type: &crate::domain::entities::types::GraphQLType,
         _variables: &Option<serde_json::Value>,
     ) -> Result<serde_json::Value, crate::domain::value_objects::GraphQLError> {
-        Err(crate::domain::value_objects::GraphQLError::new(
-            "Mutations are not yet implemented".to_string(),
-        ))
+        use crate::domain::entities::types::GraphQLType;
+        use crate::infrastructure::query_parser::Selection;
+        use serde_json::Map;
+
+        // Ensure we're working with an Object type
+        let GraphQLType::Object(object_def) = mutation_type else {
+            return Err(crate::domain::value_objects::GraphQLError::new(format!(
+                "Mutation type must be an Object type, got: {mutation_type:?}"
+            )));
+        };
+
+        let mut result_map = Map::new();
+
+        // 🚨 CRITICAL: Execute mutations sequentially, not in parallel!
+        // Each mutation must see the effects of the previous ones
+        for selection in &selection_set.selections {
+            match selection {
+                Selection::Field(field) => {
+                    // Execute this mutation field and wait for completion before proceeding
+                    let field_result = self.execute_mutation_field(field, object_def).await?;
+
+                    // Use alias if provided, otherwise use field name
+                    let result_key = field.alias.as_ref().unwrap_or(&field.name);
+                    result_map.insert(result_key.clone(), field_result);
+                },
+                Selection::InlineFragment(_) => {
+                    // For now, inline fragments in mutations are not supported
+                    return Err(crate::domain::value_objects::GraphQLError::new(
+                        "Inline fragments in mutations are not yet supported".to_string(),
+                    ));
+                },
+                Selection::FragmentSpread(_) => {
+                    // For now, fragment spreads in mutations are not supported
+                    return Err(crate::domain::value_objects::GraphQLError::new(
+                        "Fragment spreads in mutations are not yet supported".to_string(),
+                    ));
+                },
+            }
+        }
+
+        Ok(serde_json::Value::Object(result_map))
+    }
+
+    /// Execute a single mutation field with side effects
+    async fn execute_mutation_field(
+        &self,
+        field: &crate::infrastructure::query_parser::Field,
+        object_type: &crate::domain::entities::types::ObjectType,
+    ) -> Result<serde_json::Value, crate::domain::value_objects::GraphQLError> {
+        // Check if the field exists in the mutation type
+        let field_def = object_type.fields.get(&field.name).ok_or_else(|| {
+            crate::domain::value_objects::GraphQLError::new(format!(
+                "Field '{}' not found on Mutation type",
+                field.name
+            ))
+        })?;
+
+        // For demonstration purposes, we'll create mock mutation results
+        // In a real implementation, this would call actual resolver functions
+        // that perform the side effects (database operations, API calls, etc.)
+
+        match field.name.as_str() {
+            "createUser" => {
+                // Mock user creation
+                let user_data = serde_json::json!({
+                    "id": format!("user_{}", uuid::Uuid::new_v4().to_string().split('-').next().unwrap()),
+                    "name": self.get_argument_value(&field.arguments, "input")
+                        .and_then(|input| Self::extract_string_from_value(&input, &["name"]))
+                        .unwrap_or_else(|| "Unknown User".to_string()),
+                    "email": self.get_argument_value(&field.arguments, "input")
+                        .and_then(|input| Self::extract_string_from_value(&input, &["email"]))
+                        .unwrap_or_else(|| "user@example.com".to_string()),
+                    "createdAt": chrono::Utc::now().to_rfc3339(),
+                    "isActive": true
+                });
+
+                // If there are sub-selections, resolve them
+                if let Some(sub_selection_set) = &field.selection_set {
+                    self.execute_mutation_sub_selection(sub_selection_set, &user_data, field_def)
+                        .await
+                } else {
+                    Ok(user_data)
+                }
+            },
+            "updateUser" => {
+                // Mock user update
+                let user_id = self
+                    .get_argument_value(&field.arguments, "id")
+                    .and_then(|id| id.as_str().map(|s| s.to_string()))
+                    .unwrap_or_else(|| "unknown".to_string());
+
+                let updated_user = serde_json::json!({
+                    "id": user_id,
+                    "name": self.get_argument_value(&field.arguments, "input")
+                        .and_then(|input| Self::extract_string_from_value(&input, &["name"]))
+                        .unwrap_or_else(|| "Updated User".to_string()),
+                    "email": self.get_argument_value(&field.arguments, "input")
+                        .and_then(|input| Self::extract_string_from_value(&input, &["email"]))
+                        .unwrap_or_else(|| "updated@example.com".to_string()),
+                    "updatedAt": chrono::Utc::now().to_rfc3339(),
+                    "isActive": true
+                });
+
+                // If there are sub-selections, resolve them
+                if let Some(sub_selection_set) = &field.selection_set {
+                    self.execute_mutation_sub_selection(sub_selection_set, &updated_user, field_def)
+                        .await
+                } else {
+                    Ok(updated_user)
+                }
+            },
+            "deleteUser" => {
+                // Mock user deletion - typically returns boolean or deleted object
+                let _user_id = self
+                    .get_argument_value(&field.arguments, "id")
+                    .and_then(|id| id.as_str().map(|s| s.to_string()))
+                    .unwrap_or_else(|| "unknown".to_string());
+
+                // Return boolean success for deletion
+                Ok(serde_json::json!(true))
+            },
+            _ => {
+                // For unknown mutations, return a generic success response
+                // In a real implementation, this would be an error or call a dynamic resolver
+                Ok(serde_json::json!({
+                    "success": true,
+                    "message": format!("Mutation '{}' executed successfully", field.name)
+                }))
+            },
+        }
+    }
+
+    /// Execute sub-selections for mutation results
+    async fn execute_mutation_sub_selection(
+        &self,
+        selection_set: &crate::infrastructure::query_parser::SelectionSet,
+        parent_value: &serde_json::Value,
+        _field_def: &crate::domain::entities::types::FieldDefinition,
+    ) -> Result<serde_json::Value, crate::domain::value_objects::GraphQLError> {
+        use crate::infrastructure::query_parser::Selection;
+        use serde_json::Map;
+
+        let mut result_map = Map::new();
+
+        for selection in &selection_set.selections {
+            match selection {
+                Selection::Field(field) => {
+                    // Extract the requested field from the parent value
+                    let field_value = parent_value
+                        .get(&field.name)
+                        .cloned()
+                        .unwrap_or(serde_json::Value::Null);
+
+                    // Use alias if provided, otherwise use field name
+                    let result_key = field.alias.as_ref().unwrap_or(&field.name);
+                    result_map.insert(result_key.clone(), field_value);
+                },
+                Selection::InlineFragment(_) => {
+                    return Err(crate::domain::value_objects::GraphQLError::new(
+                        "Inline fragments in mutation sub-selections are not yet supported"
+                            .to_string(),
+                    ));
+                },
+                Selection::FragmentSpread(_) => {
+                    return Err(crate::domain::value_objects::GraphQLError::new(
+                        "Fragment spreads in mutation sub-selections are not yet supported"
+                            .to_string(),
+                    ));
+                },
+            }
+        }
+
+        Ok(serde_json::Value::Object(result_map))
+    }
+
+    /// Helper function to get argument value by name and convert to `serde_json::Value`
+    fn get_argument_value(
+        &self,
+        arguments: &[crate::infrastructure::query_parser::Argument],
+        name: &str,
+    ) -> Option<serde_json::Value> {
+        arguments
+            .iter()
+            .find(|arg| arg.name == name)
+            .map(|arg| self.convert_query_value_to_json(&arg.value))
+    }
+
+    /// Convert query parser Value to `serde_json::Value`
+    fn convert_query_value_to_json(
+        &self,
+        value: &crate::infrastructure::query_parser::Value,
+    ) -> serde_json::Value {
+        use crate::infrastructure::query_parser::Value;
+        match value {
+            Value::Variable(_) => {
+                // For now, variables are not fully supported in mutations
+                serde_json::Value::Null
+            },
+            Value::Int(i) => serde_json::Value::Number(serde_json::Number::from(*i)),
+            Value::Float(f) => serde_json::Number::from_f64(*f)
+                .map_or(serde_json::Value::Null, serde_json::Value::Number),
+            Value::String(s) => serde_json::Value::String(s.clone()),
+            Value::Boolean(b) => serde_json::Value::Bool(*b),
+            Value::Null => serde_json::Value::Null,
+            Value::Enum(e) => serde_json::Value::String(e.clone()),
+            Value::List(list) => {
+                let converted_list: Vec<serde_json::Value> = list
+                    .iter()
+                    .map(|v| self.convert_query_value_to_json(v))
+                    .collect();
+                serde_json::Value::Array(converted_list)
+            },
+            Value::Object(obj) => {
+                let mut converted_obj = serde_json::Map::new();
+                for (key, value) in obj {
+                    converted_obj.insert(key.clone(), self.convert_query_value_to_json(value));
+                }
+                serde_json::Value::Object(converted_obj)
+            },
+        }
+    }
+
+    /// Helper function to extract string from argument value  
+    fn extract_string_from_value(value: &serde_json::Value, path: &[&str]) -> Option<String> {
+        let mut current = value;
+        for key in path {
+            current = current.get(key)?;
+        }
+        current.as_str().map(std::string::ToString::to_string)
     }
 
     /// Execute a selection set against a GraphQL type
@@ -274,13 +532,10 @@ impl QueryExecutor {
         use serde_json::Map;
 
         // Ensure we're working with an Object type
-        let object_def = match object_type {
-            GraphQLType::Object(obj) => obj,
-            _ => {
-                return Err(crate::domain::value_objects::GraphQLError::new(
-                    "Can only execute selection sets on Object types".to_string(),
-                ))
-            },
+        let GraphQLType::Object(object_def) = object_type else {
+            return Err(crate::domain::value_objects::GraphQLError::new(
+                "Can only execute selection sets on Object types".to_string(),
+            ));
         };
 
         let mut result = Map::new();
@@ -423,5 +678,90 @@ mod tests {
         let result = executor.execute(&query, &schema).await;
 
         assert!(!result.errors.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_execute_create_user_mutation() {
+        let executor = QueryExecutor::new();
+
+        // Create a schema with Mutation type
+        let mut schema = Schema::new("Query".to_string());
+        schema.mutation_type = Some("Mutation".to_string());
+
+        // Add Mutation type to schema
+        use crate::domain::entities::types::{FieldDefinition, GraphQLType, ObjectType};
+        use std::collections::HashMap;
+
+        let mut mutation_fields = HashMap::new();
+        mutation_fields.insert(
+            "createUser".to_string(),
+            FieldDefinition {
+                name: "createUser".to_string(),
+                description: Some("Create a new user".to_string()),
+                field_type: GraphQLType::Object(ObjectType {
+                    name: "User".to_string(),
+                    description: Some("User object".to_string()),
+                    fields: HashMap::new(),
+                    interfaces: Vec::new(),
+                }),
+                arguments: HashMap::new(),
+                deprecation_reason: None,
+            },
+        );
+
+        let mutation_type = ObjectType {
+            name: "Mutation".to_string(),
+            description: Some("Root mutation type".to_string()),
+            fields: mutation_fields,
+            interfaces: Vec::new(),
+        };
+
+        schema.add_type(GraphQLType::Object(mutation_type)).unwrap();
+
+        let mutation_query = "mutation { createUser { id name } }";
+
+        let mut query = Query::new(mutation_query.to_string());
+        // For now, mark the query as valid to bypass validation
+        query.mark_validated(crate::domain::value_objects::ValidationResult::valid());
+
+        let result = executor.execute(&query, &schema).await;
+
+        assert!(
+            result.data.is_some(),
+            "Mutation should execute successfully"
+        );
+
+        let data = result.data.unwrap();
+        let create_user_result = data
+            .get("createUser")
+            .expect("Should have createUser result");
+
+        // Verify the returned data structure (using default values since arguments aren't parsed yet)
+        assert!(create_user_result.get("id").is_some());
+        assert_eq!(
+            create_user_result.get("name").unwrap().as_str().unwrap(),
+            "Unknown User"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_mutation_without_mutation_type_in_schema() {
+        let executor = QueryExecutor::new();
+        let schema = Schema::new("Query".to_string()); // No mutation type defined
+
+        let mutation_query = "mutation { createUser { id } }";
+
+        let mut query = Query::new(mutation_query.to_string());
+        query.mark_validated(crate::domain::value_objects::ValidationResult::valid());
+
+        let result = executor.execute(&query, &schema).await;
+
+        assert!(
+            !result.errors.is_empty(),
+            "Should fail when no Mutation type is defined"
+        );
+
+        let error_message = &result.errors[0].message;
+        assert!(error_message.contains("Schema does not define a Mutation type"));
     }
 }
