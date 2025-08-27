@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Test 1: Create a simple schema with Query type
     test_schema_creation()?;
 
-    // Test 2: Test query parsing  
+    // Test 2: Test query parsing
     test_query_parsing().await?;
 
     // Test 3: Test complete query execution
@@ -31,12 +31,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 fn test_schema_creation() -> Result<(), Box<dyn Error>> {
     println!("\n📋 Testing Schema Creation...");
-    
+
     let mut schema = Schema::new("Query".to_string());
 
     // Add fields to Query type
     let mut query_fields = std::collections::HashMap::new();
-    
+
     query_fields.insert(
         "hello".to_string(),
         FieldDefinition {
@@ -114,7 +114,10 @@ async fn test_query_parsing() -> Result<(), Box<dyn Error>> {
     let mut parser = QueryParser::new(simple_query);
     let document = parser.parse_document()?;
 
-    println!("✅ Simple query parsed: {} definitions", document.definitions.len());
+    println!(
+        "✅ Simple query parsed: {} definitions",
+        document.definitions.len()
+    );
 
     let complex_query = r#"
     query GetUser($id: ID!) {
@@ -129,7 +132,10 @@ async fn test_query_parsing() -> Result<(), Box<dyn Error>> {
     let mut parser = QueryParser::new(complex_query);
     let document = parser.parse_document()?;
 
-    println!("✅ Complex query parsed: {} definitions", document.definitions.len());
+    println!(
+        "✅ Complex query parsed: {} definitions",
+        document.definitions.len()
+    );
 
     Ok(())
 }
@@ -139,7 +145,7 @@ async fn test_query_execution() -> Result<(), Box<dyn Error>> {
 
     // Create a simple schema
     let mut schema_service = SchemaService::new();
-    
+
     let simple_sdl = r#"
     type Query {
         hello: String
@@ -149,15 +155,18 @@ async fn test_query_execution() -> Result<(), Box<dyn Error>> {
     "#;
 
     let schema = schema_service.load_schema_from_sdl(simple_sdl)?;
-    
+
     // Create and validate query
-    let mut query = Query::new(r#"
+    let mut query = Query::new(
+        r#"
     {
         hello
         count
         active
     }
-    "#.to_string());
+    "#
+        .to_string(),
+    );
 
     // Mark as valid (in real usage, this would go through validation)
     query.mark_validated(ValidationResult::Valid);
@@ -170,21 +179,24 @@ async fn test_query_execution() -> Result<(), Box<dyn Error>> {
     if let Some(data) = &result.data {
         println!("   Data: {}", serde_json::to_string_pretty(data)?);
     }
-    
+
     if !result.errors.is_empty() {
         println!("   Errors: {:?}", result.errors);
     }
 
     // Test query with field that doesn't exist
-    let mut invalid_query = Query::new(r#"
+    let mut invalid_query = Query::new(
+        r#"
     {
         nonexistent
     }
-    "#.to_string());
-    
+    "#
+        .to_string(),
+    );
+
     invalid_query.mark_validated(ValidationResult::Valid);
     let invalid_result = executor.execute(&invalid_query, &schema).await;
-    
+
     println!("✅ Invalid field query handled gracefully:");
     if !invalid_result.errors.is_empty() {
         println!("   Expected error: {}", invalid_result.errors[0].message);

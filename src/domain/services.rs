@@ -134,15 +134,18 @@ impl QueryExecution for QueryExecutor {
             Err(parse_error) => {
                 return ExecutionResult::error(vec![
                     crate::domain::value_objects::GraphQLError::new(format!(
-                        "Query parse error: {}", 
+                        "Query parse error: {}",
                         parse_error
-                    ))
+                    )),
                 ]);
-            }
+            },
         };
 
         // For now, execute a simple field resolution based on the query
-        match self.execute_document(&document, schema, query.variables()).await {
+        match self
+            .execute_document(&document, schema, query.variables())
+            .await
+        {
             Ok(data) => ExecutionResult::success(data),
             Err(error) => ExecutionResult::error(vec![error]),
         }
@@ -163,16 +166,18 @@ impl QueryExecutor {
         // Execute based on operation type
         match operation.operation_type {
             crate::infrastructure::query_parser::OperationType::Query => {
-                self.execute_query_operation(operation, schema, variables).await
-            }
+                self.execute_query_operation(operation, schema, variables)
+                    .await
+            },
             crate::infrastructure::query_parser::OperationType::Mutation => {
-                self.execute_mutation_operation(operation, schema, variables).await
-            }
+                self.execute_mutation_operation(operation, schema, variables)
+                    .await
+            },
             crate::infrastructure::query_parser::OperationType::Subscription => {
                 Err(crate::domain::value_objects::GraphQLError::new(
                     "Subscriptions are not yet implemented".to_string(),
                 ))
-            }
+            },
         }
     }
 
@@ -181,7 +186,10 @@ impl QueryExecutor {
         &self,
         document: &'a crate::infrastructure::query_parser::Document,
         operation_name: Option<&str>,
-    ) -> Result<&'a crate::infrastructure::query_parser::OperationDefinition, crate::domain::value_objects::GraphQLError> {
+    ) -> Result<
+        &'a crate::infrastructure::query_parser::OperationDefinition,
+        crate::domain::value_objects::GraphQLError,
+    > {
         use crate::infrastructure::query_parser::Definition;
 
         let operations: Vec<_> = document
@@ -217,7 +225,7 @@ impl QueryExecutor {
                             .to_string(),
                     ))
                 }
-            }
+            },
         }
     }
 
@@ -230,14 +238,16 @@ impl QueryExecutor {
     ) -> Result<serde_json::Value, crate::domain::value_objects::GraphQLError> {
         // Get the Query root type from schema
         let query_root = schema.query_type().map_err(|e| {
-            crate::domain::value_objects::GraphQLError::new(format!(
-                "Schema error: {}",
-                e
-            ))
+            crate::domain::value_objects::GraphQLError::new(format!("Schema error: {}", e))
         })?;
 
         // Execute the selection set on the query root type
-        self.execute_selection_set(&operation.selection_set, query_root, &serde_json::Value::Null).await
+        self.execute_selection_set(
+            &operation.selection_set,
+            query_root,
+            &serde_json::Value::Null,
+        )
+        .await
     }
 
     /// Execute a mutation operation (stub for now)
@@ -270,7 +280,7 @@ impl QueryExecutor {
                 return Err(crate::domain::value_objects::GraphQLError::new(
                     "Can only execute selection sets on Object types".to_string(),
                 ))
-            }
+            },
         };
 
         let mut result = Map::new();
@@ -281,19 +291,19 @@ impl QueryExecutor {
                     let field_result = self.execute_field(field, object_def).await?;
                     let result_name = field.alias.as_ref().unwrap_or(&field.name);
                     result.insert(result_name.clone(), field_result);
-                }
+                },
                 Selection::InlineFragment(_) => {
                     // TODO: Implement inline fragments
                     return Err(crate::domain::value_objects::GraphQLError::new(
                         "Inline fragments are not yet implemented".to_string(),
                     ));
-                }
+                },
                 Selection::FragmentSpread(_) => {
                     // TODO: Implement fragment spreads
                     return Err(crate::domain::value_objects::GraphQLError::new(
                         "Fragment spreads are not yet implemented".to_string(),
                     ));
-                }
+                },
             }
         }
 
@@ -315,7 +325,8 @@ impl QueryExecutor {
         })?;
 
         // For now, return mock data based on the field type
-        self.resolve_field_value(&field_def.field_type, &field.name).await
+        self.resolve_field_value(&field_def.field_type, &field.name)
+            .await
     }
 
     /// Resolve a field value based on its type (mock implementation)  
@@ -323,16 +334,25 @@ impl QueryExecutor {
         &'a self,
         field_type: &'a crate::domain::entities::types::GraphQLType,
         field_name: &'a str,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<serde_json::Value, crate::domain::value_objects::GraphQLError>> + Send + 'a>> {
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<serde_json::Value, crate::domain::value_objects::GraphQLError>,
+                > + Send
+                + 'a,
+        >,
+    > {
         Box::pin(async move {
             use crate::domain::entities::types::{GraphQLType, ScalarType};
 
             match field_type {
                 GraphQLType::Scalar(scalar) => match scalar {
-                    ScalarType::String => Ok(serde_json::Value::String(format!("Mock {}", field_name))),
+                    ScalarType::String => {
+                        Ok(serde_json::Value::String(format!("Mock {}", field_name)))
+                    },
                     ScalarType::Int => Ok(serde_json::Value::Number(serde_json::Number::from(42))),
                     ScalarType::Float => Ok(serde_json::Value::Number(
-                        serde_json::Number::from_f64(3.14).unwrap()
+                        serde_json::Number::from_f64(3.14).unwrap(),
                     )),
                     ScalarType::Boolean => Ok(serde_json::Value::Bool(true)),
                     ScalarType::ID => Ok(serde_json::Value::String(format!("id_{}", field_name))),
@@ -348,18 +368,18 @@ impl QueryExecutor {
                         "__typename": "Object",
                         "message": format!("Object field: {}", field_name)
                     }))
-                }
+                },
                 GraphQLType::List(_) => {
                     // Return a mock list
                     Ok(serde_json::Value::Array(vec![
                         serde_json::Value::String(format!("{}_item_1", field_name)),
                         serde_json::Value::String(format!("{}_item_2", field_name)),
                     ]))
-                }
+                },
                 GraphQLType::NonNull(inner) => {
                     // Unwrap the non-null and resolve the inner type
                     self.resolve_field_value(inner, field_name).await
-                }
+                },
                 _ => Ok(serde_json::Value::String(format!(
                     "Unsupported type for field: {}",
                     field_name

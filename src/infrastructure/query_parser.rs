@@ -187,7 +187,7 @@ impl<'input> QueryParser<'input> {
         match self.lexer.current_token() {
             Some(Token::Query) | Some(Token::Mutation) | Some(Token::Subscription) => {
                 Ok(Definition::Operation(self.parse_operation_definition()?))
-            }
+            },
             Some(Token::Fragment) => Ok(Definition::Fragment(self.parse_fragment_definition()?)),
             Some(Token::LeftBrace) => {
                 // Anonymous query operation
@@ -198,7 +198,7 @@ impl<'input> QueryParser<'input> {
                     directives: Vec::new(),
                     selection_set: self.parse_selection_set()?,
                 }))
-            }
+            },
             Some(token) => Err(QueryParseError::UnexpectedToken {
                 expected: "operation or fragment".to_string(),
                 found: format!("{:?}", token),
@@ -216,27 +216,27 @@ impl<'input> QueryParser<'input> {
             Some(Token::Query) => {
                 self.lexer.advance();
                 OperationType::Query
-            }
+            },
             Some(Token::Mutation) => {
                 self.lexer.advance();
                 OperationType::Mutation
-            }
+            },
             Some(Token::Subscription) => {
                 self.lexer.advance();
                 OperationType::Subscription
-            }
+            },
             Some(token) => {
                 return Err(QueryParseError::UnexpectedToken {
                     expected: "query, mutation, or subscription".to_string(),
                     found: format!("{:?}", token),
                     position: self.lexer.position(),
                 })
-            }
+            },
             None => {
                 return Err(QueryParseError::UnexpectedEof {
                     expected: "query, mutation, or subscription".to_string(),
                 })
-            }
+            },
         };
 
         let name = if let Some(Token::Name(name)) = self.lexer.current_token() {
@@ -284,7 +284,7 @@ impl<'input> QueryParser<'input> {
         let variable = self.parse_name()?;
         self.expect_token(&Token::Colon)?;
         let type_ = self.parse_type_ref()?;
-        
+
         let default_value = if self.is_current_token(&Token::Equals) {
             self.lexer.advance();
             Some(self.parse_value()?)
@@ -343,7 +343,10 @@ impl<'input> QueryParser<'input> {
                 let name = name.clone();
                 self.lexer.advance();
                 let directives = self.parse_directives()?;
-                Ok(Selection::FragmentSpread(FragmentSpread { name, directives }))
+                Ok(Selection::FragmentSpread(FragmentSpread {
+                    name,
+                    directives,
+                }))
             } else {
                 // Inline fragment
                 let type_condition = if self.is_current_token(&Token::On) {
@@ -368,7 +371,7 @@ impl<'input> QueryParser<'input> {
     /// Parse a field
     fn parse_field(&mut self) -> Result<Field, QueryParseError> {
         let first_name = self.parse_name()?;
-        
+
         let (alias, name) = if self.is_current_token(&Token::Colon) {
             self.lexer.advance();
             let name = self.parse_name()?;
@@ -457,39 +460,39 @@ impl<'input> QueryParser<'input> {
             Some(Token::Dollar) => {
                 self.lexer.advance();
                 Ok(Value::Variable(self.parse_name()?))
-            }
+            },
             Some(Token::Integer(i)) => {
                 let value = *i as i32; // Convert i64 to i32
                 self.lexer.advance();
                 Ok(Value::Int(value))
-            }
+            },
             Some(Token::Float(f)) => {
                 let value = *f;
                 self.lexer.advance();
                 Ok(Value::Float(value))
-            }
+            },
             Some(Token::String(s)) => {
                 let value = s.clone();
                 self.lexer.advance();
                 Ok(Value::String(value))
-            }
+            },
             Some(Token::True) => {
                 self.lexer.advance();
                 Ok(Value::Boolean(true))
-            }
+            },
             Some(Token::False) => {
                 self.lexer.advance();
                 Ok(Value::Boolean(false))
-            }
+            },
             Some(Token::Null) => {
                 self.lexer.advance();
                 Ok(Value::Null)
-            }
+            },
             Some(Token::Name(name)) => {
                 let value = name.clone();
                 self.lexer.advance();
                 Ok(Value::Enum(value))
-            }
+            },
             Some(Token::LeftBracket) => self.parse_list_value(),
             Some(Token::LeftBrace) => self.parse_object_value(),
             Some(token) => Err(QueryParseError::UnexpectedToken {
@@ -539,7 +542,7 @@ impl<'input> QueryParser<'input> {
                 let name = name.clone();
                 self.lexer.advance();
                 Ok(name)
-            }
+            },
             Some(token) => Err(QueryParseError::UnexpectedToken {
                 expected: "name".to_string(),
                 found: format!("{:?}", token),
@@ -594,12 +597,12 @@ mod tests {
             }
         }
         "#;
-        
+
         let mut parser = QueryParser::new(input);
         let document = parser.parse_document().unwrap();
-        
+
         assert_eq!(document.definitions.len(), 1);
-        
+
         if let Definition::Operation(op) = &document.definitions[0] {
             assert_eq!(op.operation_type, OperationType::Query);
             assert_eq!(op.name, Some("GetUser".to_string()));
@@ -619,10 +622,10 @@ mod tests {
             }
         }
         "#;
-        
+
         let mut parser = QueryParser::new(input);
         let document = parser.parse_document().unwrap();
-        
+
         if let Definition::Operation(op) = &document.definitions[0] {
             assert_eq!(op.variable_definitions.len(), 2);
             assert_eq!(op.variable_definitions[0].variable, "id");
@@ -635,17 +638,17 @@ mod tests {
     #[test]
     fn test_parse_mutation() {
         let input = r#"
-        mutation CreateUser($input: UserInput!) {
-            createUser(input: $input) {
+        mutation CreateUser($userData: UserData!) {
+            createUser(userData: $userData) {
                 id
                 name
             }
         }
         "#;
-        
+
         let mut parser = QueryParser::new(input);
         let document = parser.parse_document().unwrap();
-        
+
         if let Definition::Operation(op) = &document.definitions[0] {
             assert_eq!(op.operation_type, OperationType::Mutation);
             assert_eq!(op.name, Some("CreateUser".to_string()));
@@ -664,10 +667,10 @@ mod tests {
             }
         }
         "#;
-        
+
         let mut parser = QueryParser::new(input);
         let document = parser.parse_document().unwrap();
-        
+
         if let Definition::Operation(op) = &document.definitions[0] {
             assert_eq!(op.operation_type, OperationType::Query);
             assert_eq!(op.name, None);
@@ -686,10 +689,10 @@ mod tests {
             }
         }
         "#;
-        
+
         let mut parser = QueryParser::new(input);
         let document = parser.parse_document().unwrap();
-        
+
         if let Definition::Operation(op) = &document.definitions[0] {
             if let Selection::Field(field) = &op.selection_set.selections[0] {
                 assert_eq!(field.alias, Some("currentUser".to_string()));
