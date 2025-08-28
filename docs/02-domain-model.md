@@ -1,23 +1,140 @@
-# Domain Model Design
+# Domain Model Design: Visual GraphQL Architecture
 
-This document outlines the domain model for our GraphQL server implementation using Domain-Driven Design (DDD) principles.
+This guide shows how we use Domain-Driven Design (DDD) to build a clean, maintainable GraphQL server architecture with visual diagrams and practical examples.
+
+## 🏗️ How Our GraphQL Server is Organized (High-Level View)
+
+```text
+┌────────────────────────────────────────────────────────────────┐
+│                    GraphQL Request Flow                        │
+├────────────────────────────────────────────────────────────────┤
+│ 1. HTTP Request → Presentation Layer (GraphQL endpoint)        │
+│ 2. Parse & Validate → Application Layer (Use cases)            │
+│ 3. Execute Query → Domain Layer (Business logic)               │
+│ 4. Fetch Data → Infrastructure Layer (Resolvers, DB)           │
+│ 5. Return Response ← All layers collaborate                     │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### 🧱 DDD Architecture Layers (Visual)
+
+```text
+┌─────────────────────┐  HTTP requests, GraphQL over HTTP
+│ Presentation Layer  │  ← Controllers, GraphQL endpoints
+├─────────────────────┤
+│ Application Layer   │  ← Use cases, orchestration
+├─────────────────────┤
+│ Domain Layer        │  ← Business logic, entities, rules
+├─────────────────────┤
+│ Infrastructure      │  ← Data access, external services
+└─────────────────────┘
+```
+
+### 🎯 Practical Example: How a Query Flows Through the System
+
+**Query:** `{ user(id: "123") { name, posts { title } } }`
+
+```text
+1. Presentation Layer
+   ┌─────────────────┐
+   │ GraphQL Handler │ ← Receives HTTP POST with query
+   └─────────────────┘
+           │
+2. Application Layer
+   ┌─────────────────┐
+   │ ExecuteQuery    │ ← Parses, validates, orchestrates
+   │ UseCase         │
+   └─────────────────┘
+           │
+3. Domain Layer
+   ┌─────────────────┐
+   │ QueryExecutor   │ ← Applies business rules, validation
+   │ SchemaValidator │
+   └─────────────────┘
+           │
+4. Infrastructure Layer
+   ┌─────────────────┐
+   │ UserResolver    │ ← Fetches data from database
+   │ PostResolver    │
+   └─────────────────┘
+```
 
 ## Domain-Driven Design Overview
 
 DDD focuses on modeling the business domain and organizing code around domain concepts rather than technical concerns. This approach helps create more maintainable and understandable software.
 
-### Core DDD Concepts
+### 🔧 Core DDD Concepts (With GraphQL Examples)
 
-1. **Domain**: The subject area to which the software applies
-2. **Ubiquitous Language**: Shared vocabulary between domain experts and developers  
-3. **Bounded Context**: Explicit boundaries within which a model is defined
-4. **Entities**: Objects with identity that persist over time
-5. **Value Objects**: Objects without identity, defined by their attributes
-6. **Aggregates**: Clusters of entities and value objects with consistency boundaries
-7. **Domain Services**: Operations that don't naturally belong to entities
-8. **Repository**: Abstraction for data access
+1. **Domain**: GraphQL execution and schema management
+2. **Ubiquitous Language**: "Query", "Schema", "Resolver", "Field" (shared by all team members)
+3. **Bounded Context**: GraphQL Engine (separate from Auth, User Management, etc.)
+4. **Entities**: Schema, Query (have identity and lifecycle)
+5. **Value Objects**: Field, TypeDefinition (no identity, just data)
+6. **Aggregates**: SchemaAggregate (consistency boundary around Schema + Resolvers)
+7. **Domain Services**: QueryValidator, SchemaValidator (business operations)
+8. **Repository**: SchemaRepository (data access abstraction)
 
 ## GraphQL Domain Model
+
+### 🎨 Domain Model Visual Overview
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                     GraphQL Domain Model                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────┐      contains      ┌─────────────┐            │
+│  │   Schema    │ ─────────────────▶ │ TypeDef     │            │
+│  │ (Entity)    │                    │ (Value Obj) │            │
+│  └─────────────┘                    └─────────────┘            │
+│         │                                   │                  │
+│         │ validates                         │ describes        │
+│         ▼                                   ▼                  │
+│  ┌─────────────┐      executes      ┌─────────────┐            │
+│  │    Query    │ ─────────────────▶ │ Selection   │            │
+│  │ (Entity)    │                    │ (Value Obj) │            │
+│  └─────────────┘                    └─────────────┘            │
+│         │                                                      │
+│         │ managed by                                           │
+│         ▼                                                      │
+│  ┌─────────────┐                                              │
+│  │Schema       │  ← Aggregate Root                            │
+│  │Aggregate    │    (Consistency boundary)                    │
+│  └─────────────┘                                              │
+│                                                               │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 🔄 How Domain Objects Interact (Request Flow)
+
+```text
+1. Client Query Request
+   ┌─────────────┐
+   │   Query     │ ← "{ user { name } }"
+   │  (Entity)   │
+   └─────────────┘
+           │ passed to
+           ▼
+2. Schema Validation
+   ┌─────────────┐
+   │   Schema    │ ← Has TypeDefinitions, validates query
+   │  (Entity)   │
+   └─────────────┘
+           │ if valid
+           ▼
+3. Execution Planning
+   ┌─────────────┐
+   │ Selection   │ ← Breaks query into field selections
+   │(Value Obj)  │
+   └─────────────┘
+           │ executed by
+           ▼
+4. Aggregate Coordination
+   ┌─────────────┐
+   │Schema       │ ← Orchestrates validation + execution
+   │Aggregate    │
+   └─────────────┘
+```
 
 ### Core Bounded Context: GraphQL Execution Engine
 
@@ -26,6 +143,7 @@ Our primary bounded context encompasses the GraphQL specification implementation
 #### Domain Entities
 
 ##### Schema
+
 - **Identity**: Schema name/version
 - **Invariants**: Must contain valid type definitions, must have Query type
 - **Behavior**: Validate queries, provide introspection data
@@ -42,6 +160,7 @@ pub struct Schema {
 ```
 
 ##### Query
+
 - **Identity**: Query ID (for tracing/caching)
 - **Invariants**: Must be valid GraphQL syntax, must pass validation
 - **Behavior**: Execute against schema, return results
@@ -59,6 +178,7 @@ pub struct Query {
 #### Value Objects
 
 ##### TypeDefinition
+
 Represents GraphQL type information without identity:
 
 ```rust
