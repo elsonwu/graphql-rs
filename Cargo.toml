@@ -2,7 +2,7 @@
 name = "graphql-rs"
 version = "0.1.0"
 edition = "2021"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Original Author <original@email.com>"]
 license = "MIT"
 description = "A GraphQL server implementation in Rust built from scratch for learning"
 repository = "https://github.com/elsonwu/graphql-rs"
