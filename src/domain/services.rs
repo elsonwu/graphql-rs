@@ -25,36 +25,42 @@ impl SchemaValidator {
 
         // Rule 1: Schema must have a Query type
         if schema.get_type(&schema.query_type).is_none() {
-            errors.push(GraphQLError::validation_error(format!(
-                "Query type '{}' is not defined",
-                schema.query_type
-            )));
+            errors.push(
+                GraphQLError::type_not_found(&schema.query_type).with_extension(
+                    "rule",
+                    serde_json::Value::String("QUERY_TYPE_REQUIRED".to_string()),
+                ),
+            );
         }
 
         // Rule 2: Mutation type must exist if specified
         if let Some(mutation_type) = &schema.mutation_type {
             if schema.get_type(mutation_type).is_none() {
-                errors.push(GraphQLError::validation_error(format!(
-                    "Mutation type '{mutation_type}' is not defined"
-                )));
+                errors.push(GraphQLError::type_not_found(mutation_type).with_extension(
+                    "rule",
+                    serde_json::Value::String("MUTATION_TYPE_REQUIRED".to_string()),
+                ));
             }
         }
 
         // Rule 3: Subscription type must exist if specified
         if let Some(subscription_type) = &schema.subscription_type {
             if schema.get_type(subscription_type).is_none() {
-                errors.push(GraphQLError::validation_error(format!(
-                    "Subscription type '{subscription_type}' is not defined"
-                )));
+                errors.push(
+                    GraphQLError::type_not_found(subscription_type).with_extension(
+                        "rule",
+                        serde_json::Value::String("SUBSCRIPTION_TYPE_REQUIRED".to_string()),
+                    ),
+                );
             }
         }
 
         // Additional validation rules will be added in later iterations
 
         if errors.is_empty() {
-            ValidationResult::Valid
+            ValidationResult::valid()
         } else {
-            ValidationResult::Invalid(errors)
+            ValidationResult::invalid_with_errors(errors)
         }
     }
 }
