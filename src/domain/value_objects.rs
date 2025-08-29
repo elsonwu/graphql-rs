@@ -189,7 +189,7 @@ impl ValidationResult {
         Self::Invalid(vec![GraphQLError::validation_error(error)])
     }
 
-    /// Create an invalid result with a single GraphQLError
+    /// Create an invalid result with a single `GraphQLError`
     #[must_use]
     pub fn invalid_with_error(error: GraphQLError) -> Self {
         Self::Invalid(vec![error])
@@ -277,7 +277,7 @@ impl ValidationResult {
         }
     }
 
-    /// Convert to ExecutionResult if invalid
+    /// Convert to `ExecutionResult` if invalid
     #[must_use]
     pub fn to_execution_result(self) -> Option<ExecutionResult> {
         match self {
@@ -407,13 +407,13 @@ impl ExecutionResult {
     /// Check if result has client errors
     #[must_use]
     pub fn has_client_errors(&self) -> bool {
-        self.errors.iter().any(|error| error.is_client_error())
+        self.errors.iter().any(GraphQLError::is_client_error)
     }
 
     /// Check if result has server errors
     #[must_use]
     pub fn has_server_errors(&self) -> bool {
-        self.errors.iter().any(|error| error.is_server_error())
+        self.errors.iter().any(GraphQLError::is_server_error)
     }
 
     /// Create a sanitized version for production (mask server errors)
@@ -648,6 +648,7 @@ pub struct ErrorPropagation;
 impl ErrorPropagation {
     /// Propagate field error up the execution path
     /// If a non-nullable field errors, it causes the parent to become null
+    #[must_use]
     pub fn propagate_field_error(
         error: GraphQLError,
         field_path: &[PathSegment],
@@ -662,6 +663,7 @@ impl ErrorPropagation {
     }
 
     /// Collect multiple field errors and determine if parent should be null
+    #[must_use]
     pub fn collect_field_errors(errors: Vec<(GraphQLError, bool)>) -> (Vec<GraphQLError>, bool) {
         let should_bubble = errors.iter().any(|(_, bubble)| *bubble);
         let collected_errors = errors.into_iter().map(|(error, _)| error).collect();
@@ -670,6 +672,7 @@ impl ErrorPropagation {
     }
 
     /// Create error for missing required field
+    #[must_use]
     pub fn missing_required_field(field_name: &str, parent_path: &[PathSegment]) -> GraphQLError {
         let mut path = parent_path.to_vec();
         path.push(PathSegment::Field(field_name.to_string()));
@@ -679,6 +682,7 @@ impl ErrorPropagation {
     }
 
     /// Create error for null value in non-nullable field
+    #[must_use]
     pub fn null_in_non_nullable(field_name: &str, parent_path: &[PathSegment]) -> GraphQLError {
         let mut path = parent_path.to_vec();
         path.push(PathSegment::Field(field_name.to_string()));
@@ -695,6 +699,7 @@ pub struct ErrorFormatter;
 
 impl ErrorFormatter {
     /// Format error for development (includes all details)
+    #[must_use]
     pub fn format_development(error: &GraphQLError) -> serde_json::Value {
         serde_json::json!({
             "message": error.message,
@@ -708,6 +713,7 @@ impl ErrorFormatter {
     }
 
     /// Format error for production (sanitized)
+    #[must_use]
     pub fn format_production(error: &GraphQLError) -> serde_json::Value {
         serde_json::json!({
             "message": error.user_message(true),
@@ -723,6 +729,7 @@ impl ErrorFormatter {
     }
 
     /// Format multiple errors with summary
+    #[must_use]
     pub fn format_error_summary(errors: &[GraphQLError]) -> serde_json::Value {
         let client_errors = errors.iter().filter(|e| e.is_client_error()).count();
         let server_errors = errors.iter().filter(|e| e.is_server_error()).count();
@@ -785,6 +792,7 @@ impl std::fmt::Debug for SubscriptionResult {
 
 impl SubscriptionResult {
     /// Create a successful subscription result with a stream
+    #[must_use]
     pub fn with_stream(stream: Pin<Box<dyn Stream<Item = ExecutionResult> + Send>>) -> Self {
         Self {
             stream: Some(stream),
@@ -793,6 +801,7 @@ impl SubscriptionResult {
     }
 
     /// Create a subscription result with errors (no stream)
+    #[must_use]
     pub fn with_errors(errors: Vec<GraphQLError>) -> Self {
         Self {
             stream: None,
@@ -801,16 +810,19 @@ impl SubscriptionResult {
     }
 
     /// Create a subscription result with a single error
+    #[must_use]
     pub fn with_error(error: GraphQLError) -> Self {
         Self::with_errors(vec![error])
     }
 
     /// Check if the subscription has errors
+    #[must_use]
     pub fn has_errors(&self) -> bool {
         !self.errors.is_empty()
     }
 
     /// Check if the subscription has a valid stream
+    #[must_use]
     pub fn has_stream(&self) -> bool {
         self.stream.is_some()
     }
@@ -827,7 +839,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{oneshot, Mutex, RwLock};
 
-/// Configuration for DataLoader behavior
+/// Configuration for `DataLoader` behavior
 #[derive(Debug, Clone)]
 pub struct DataLoaderConfig {
     /// Maximum batch size before forcing execution
@@ -911,7 +923,7 @@ impl<K, V, E> Default for BatchQueue<K, V, E> {
     }
 }
 
-/// DataLoader metrics for monitoring and performance analysis
+/// `DataLoader` metrics for monitoring and performance analysis
 #[derive(Debug, Default, Clone)]
 pub struct DataLoaderMetrics {
     /// Total number of load requests
@@ -935,6 +947,7 @@ pub struct DataLoaderMetrics {
 
 impl DataLoaderMetrics {
     /// Calculate cache hit ratio
+    #[must_use]
     pub fn cache_hit_ratio(&self) -> f64 {
         if self.total_requests == 0 {
             0.0
@@ -951,7 +964,7 @@ impl DataLoaderMetrics {
     }
 }
 
-/// A DataLoader for efficient batching and caching of data fetching operations
+/// A `DataLoader` for efficient batching and caching of data fetching operations
 ///
 /// Solves the N+1 query problem by:
 /// 1. Batching multiple individual load requests into single batch operations
@@ -986,12 +999,12 @@ where
     V: Clone + Send + Sync + 'static,
     E: Clone + Send + Sync + 'static,
 {
-    /// Create a new DataLoader with the given batch loading function
+    /// Create a new `DataLoader` with the given batch loading function
     pub fn new(batch_load_fn: Arc<dyn BatchLoadFn<K, V, E>>) -> Self {
         Self::with_config(batch_load_fn, DataLoaderConfig::default())
     }
 
-    /// Create a new DataLoader with custom configuration
+    /// Create a new `DataLoader` with custom configuration
     pub fn with_config(
         batch_load_fn: Arc<dyn BatchLoadFn<K, V, E>>,
         config: DataLoaderConfig,
@@ -1102,7 +1115,7 @@ where
 
     /// Load multiple values by keys
     ///
-    /// More efficient than calling load() multiple times as it can batch all requests together
+    /// More efficient than calling `load()` multiple times as it can batch all requests together
     pub async fn load_many(&self, keys: Vec<K>) -> Result<HashMap<K, V>, E> {
         let mut results = HashMap::new();
         let mut uncached_keys = Vec::new();
@@ -1176,7 +1189,7 @@ where
         .await;
     }
 
-    /// Static version of execute_batch for use in async closures
+    /// Static version of `execute_batch` for use in async closures
     async fn execute_batch_static(
         pending: Vec<BatchRequest<K, V, E>>,
         batch_load_fn: Arc<dyn BatchLoadFn<K, V, E>>,
