@@ -4,7 +4,7 @@
 
 use crate::domain::{
     entities::{query::Query, schema::Schema},
-    value_objects::{ExecutionResult, GraphQLError, SubscriptionResult, ValidationResult},
+    value_objects::{ExecutionResult, GraphQLError, SubscriptionResult, ValidationResult, DataLoader},
 };
 use async_trait::async_trait;
 use futures::Stream;
@@ -860,5 +860,137 @@ mod tests {
 
         let error_message = &result.errors[0].message;
         assert!(error_message.contains("Schema does not define a Mutation type"));
+    }
+}
+
+// ================================================================================================
+// DataLoader Context Service
+// ================================================================================================
+
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::sync::Arc;
+
+/// DataLoader context service for GraphQL field resolvers
+/// 
+/// Provides a centralized way to manage DataLoaders across GraphQL execution,
+/// allowing field resolvers to access pre-configured DataLoaders for different
+/// entity types while maintaining performance optimizations.
+pub struct DataLoaderContext {
+    /// Map of DataLoader instances by their type name
+    dataloaders: HashMap<String, Box<dyn std::any::Any + Send + Sync>>,
+}
+
+impl DataLoaderContext {
+    /// Create a new DataLoader context
+    pub fn new() -> Self {
+        Self {
+            dataloaders: HashMap::new(),
+        }
+    }
+
+    /// Register a DataLoader for a specific type
+    pub fn register_dataloader<K, V, E>(
+        &mut self,
+        type_name: &str,
+        dataloader: DataLoader<K, V, E>,
+    ) where
+        K: Clone + Hash + Eq + Send + Sync + 'static,
+        V: Clone + Send + Sync + 'static,
+        E: Clone + Send + Sync + 'static,
+    {
+        self.dataloaders.insert(
+            type_name.to_string(),
+            Box::new(dataloader),
+        );
+    }
+
+    /// Get a DataLoader for a specific type
+    pub fn get_dataloader<K, V, E>(&self, type_name: &str) -> Option<&DataLoader<K, V, E>>
+    where
+        K: Clone + Hash + Eq + Send + Sync + 'static,
+        V: Clone + Send + Sync + 'static,
+        E: Clone + Send + Sync + 'static,
+    {
+        self.dataloaders
+            .get(type_name)?
+            .downcast_ref::<DataLoader<K, V, E>>()
+    }
+
+    /// Create a builder for configuring multiple DataLoaders
+    pub fn builder() -> DataLoaderContextBuilder {
+        DataLoaderContextBuilder::new()
+    }
+}
+
+impl Default for DataLoaderContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Builder for DataLoaderContext to make configuration easier
+pub struct DataLoaderContextBuilder {
+    context: DataLoaderContext,
+}
+
+impl DataLoaderContextBuilder {
+    /// Create a new builder
+    pub fn new() -> Self {
+        Self {
+            context: DataLoaderContext::new(),
+        }
+    }
+
+    /// Add a DataLoader to the context
+    pub fn with_dataloader<K, V, E>(
+        mut self,
+        type_name: &str,
+        dataloader: DataLoader<K, V, E>,
+    ) -> Self
+    where
+        K: Clone + Hash + Eq + Send + Sync + 'static,
+        V: Clone + Send + Sync + 'static,
+        E: Clone + Send + Sync + 'static,
+    {
+        self.context.register_dataloader(type_name, dataloader);
+        self
+    }
+
+    /// Build the final DataLoaderContext
+    pub fn build(self) -> DataLoaderContext {
+        self.context
+    }
+}
+
+impl Default for DataLoaderContextBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Extension trait to add DataLoader support to QueryExecutor
+pub trait QueryExecutorDataLoaderExt {
+    /// Execute a query with DataLoader context
+    fn execute_with_dataloaders(
+        &self,
+        query: &Query,
+        schema: &Schema,
+        dataloader_context: Arc<DataLoaderContext>,
+    ) -> impl std::future::Future<Output = ExecutionResult> + Send;
+}
+
+impl QueryExecutorDataLoaderExt for QueryExecutor {
+    /// Execute a query with DataLoader context available to field resolvers
+    async fn execute_with_dataloaders(
+        &self,
+        query: &Query,
+        schema: &Schema,
+        _dataloader_context: Arc<DataLoaderContext>,
+    ) -> ExecutionResult {
+        // For now, this delegates to the regular execute method
+        // In a full implementation, the DataLoader context would be passed
+        // to field resolvers to enable efficient data loading
+        self.execute(query, schema).await
     }
 }

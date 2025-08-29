@@ -815,3 +815,424 @@ impl SubscriptionResult {
         self.stream.is_some()
     }
 }
+
+// ================================================================================================
+// DataLoader Pattern Implementation
+// ================================================================================================
+
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::sync::{Mutex, oneshot, RwLock};
+use async_trait::async_trait;
+
+/// Configuration for DataLoader behavior
+#[derive(Debug, Clone)]
+pub struct DataLoaderConfig {
+    /// Maximum batch size before forcing execution
+    pub max_batch_size: usize,
+    
+    /// Batch delay in milliseconds to collect requests
+    pub batch_delay_ms: u64,
+    
+    /// Enable in-memory caching
+    pub cache_enabled: bool,
+    
+    /// Cache TTL in seconds (None = no expiration)
+    pub cache_ttl_seconds: Option<u64>,
+    
+    /// Enable metrics collection
+    pub enable_metrics: bool,
+}
+
+impl Default for DataLoaderConfig {
+    fn default() -> Self {
+        Self {
+            max_batch_size: 100,
+            batch_delay_ms: 10,
+            cache_enabled: true,
+            cache_ttl_seconds: Some(300), // 5 minutes default TTL
+            enable_metrics: true,
+        }
+    }
+}
+
+/// Cache entry with optional TTL
+#[derive(Debug, Clone)]
+struct CacheEntry<V> {
+    value: V,
+    expires_at: Option<Instant>,
+}
+
+impl<V> CacheEntry<V> {
+    fn new(value: V, ttl: Option<Duration>) -> Self {
+        let expires_at = ttl.map(|ttl| Instant::now() + ttl);
+        Self { value, expires_at }
+    }
+    
+    fn is_expired(&self) -> bool {
+        if let Some(expires_at) = self.expires_at {
+            Instant::now() > expires_at
+        } else {
+            false
+        }
+    }
+}
+
+/// Batch loading function trait for DataLoader
+#[async_trait]
+pub trait BatchLoadFn<K, V, E>: Send + Sync {
+    /// Load multiple values for the given keys
+    /// Returns a HashMap mapping keys to their loaded values
+    async fn load(&self, keys: Vec<K>) -> Result<HashMap<K, V>, E>;
+}
+
+/// Pending batch request
+#[derive(Debug)]
+struct BatchRequest<K, V, E> {
+    key: K,
+    sender: oneshot::Sender<Result<V, E>>,
+}
+
+/// Batch queue for collecting and managing pending requests
+#[derive(Debug)]
+struct BatchQueue<K, V, E> {
+    pending: Vec<BatchRequest<K, V, E>>,
+    timer: Option<tokio::task::JoinHandle<()>>,
+}
+
+impl<K, V, E> Default for BatchQueue<K, V, E> {
+    fn default() -> Self {
+        Self {
+            pending: Vec::new(),
+            timer: None,
+        }
+    }
+}
+
+/// DataLoader metrics for monitoring and performance analysis
+#[derive(Debug, Default, Clone)]
+pub struct DataLoaderMetrics {
+    /// Total number of load requests
+    pub total_requests: u64,
+    
+    /// Number of cache hits
+    pub cache_hits: u64,
+    
+    /// Number of cache misses
+    pub cache_misses: u64,
+    
+    /// Number of batch operations executed
+    pub batches_executed: u64,
+    
+    /// Total keys loaded in batches
+    pub total_keys_loaded: u64,
+    
+    /// Average batch size
+    pub average_batch_size: f64,
+}
+
+impl DataLoaderMetrics {
+    /// Calculate cache hit ratio
+    pub fn cache_hit_ratio(&self) -> f64 {
+        if self.total_requests == 0 {
+            0.0
+        } else {
+            self.cache_hits as f64 / self.total_requests as f64
+        }
+    }
+    
+    /// Update average batch size
+    pub fn update_average_batch_size(&mut self, batch_size: usize) {
+        let total_batches = self.batches_executed as f64;
+        self.average_batch_size = ((self.average_batch_size * (total_batches - 1.0)) + batch_size as f64) / total_batches;
+    }
+}
+
+/// A DataLoader for efficient batching and caching of data fetching operations
+/// 
+/// Solves the N+1 query problem by:
+/// 1. Batching multiple individual load requests into single batch operations
+/// 2. Caching results to avoid redundant loads
+/// 3. Request deduplication within the same execution context
+#[derive(Clone)]
+pub struct DataLoader<K, V, E> 
+where 
+    K: Clone + Hash + Eq + Send + Sync + 'static,
+    V: Clone + Send + Sync + 'static,
+    E: Clone + Send + Sync + 'static,
+{
+    /// The batch loading function
+    batch_load_fn: Arc<dyn BatchLoadFn<K, V, E>>,
+    
+    /// In-memory cache for loaded values
+    cache: Arc<RwLock<HashMap<K, CacheEntry<V>>>>,
+    
+    /// Batch queue for pending requests
+    batch_queue: Arc<Mutex<BatchQueue<K, V, E>>>,
+    
+    /// Configuration options
+    config: DataLoaderConfig,
+    
+    /// Performance metrics
+    metrics: Arc<RwLock<DataLoaderMetrics>>,
+}
+
+impl<K, V, E> DataLoader<K, V, E> 
+where 
+    K: Clone + Hash + Eq + Send + Sync + 'static,
+    V: Clone + Send + Sync + 'static,
+    E: Clone + Send + Sync + 'static,
+{
+    /// Create a new DataLoader with the given batch loading function
+    pub fn new(batch_load_fn: Arc<dyn BatchLoadFn<K, V, E>>) -> Self {
+        Self::with_config(batch_load_fn, DataLoaderConfig::default())
+    }
+    
+    /// Create a new DataLoader with custom configuration
+    pub fn with_config(
+        batch_load_fn: Arc<dyn BatchLoadFn<K, V, E>>, 
+        config: DataLoaderConfig
+    ) -> Self {
+        Self {
+            batch_load_fn,
+            cache: Arc::new(RwLock::new(HashMap::new())),
+            batch_queue: Arc::new(Mutex::new(BatchQueue::default())),
+            config,
+            metrics: Arc::new(RwLock::new(DataLoaderMetrics::default())),
+        }
+    }
+    
+    /// Load a single value by key
+    /// 
+    /// If the key is cached and not expired, returns the cached value immediately.
+    /// Otherwise, adds the key to the batch queue and waits for batch execution.
+    pub async fn load(&self, key: K) -> Result<V, E> {
+        // Update metrics
+        if self.config.enable_metrics {
+            let mut metrics = self.metrics.write().await;
+            metrics.total_requests += 1;
+        }
+        
+        // Check cache first if caching is enabled
+        if self.config.cache_enabled {
+            let cache = self.cache.read().await;
+            if let Some(entry) = cache.get(&key) {
+                if !entry.is_expired() {
+                    if self.config.enable_metrics {
+                        let mut metrics = self.metrics.write().await;
+                        metrics.cache_hits += 1;
+                    }
+                    return Ok(entry.value.clone());
+                }
+            }
+        }
+        
+        // Cache miss - add to batch queue
+        if self.config.enable_metrics {
+            let mut metrics = self.metrics.write().await;
+            metrics.cache_misses += 1;
+        }
+        
+        let (sender, receiver) = oneshot::channel();
+        let batch_request = BatchRequest { key: key.clone(), sender };
+        
+        // Add request to batch queue
+        let mut queue = self.batch_queue.lock().await;
+        queue.pending.push(batch_request);
+        
+        // Check if we should execute immediately
+        let should_execute = queue.pending.len() >= self.config.max_batch_size;
+        
+        if should_execute {
+            // Execute immediately if batch size reached
+            let pending = std::mem::take(&mut queue.pending);
+            if let Some(timer) = queue.timer.take() {
+                timer.abort();
+            }
+            drop(queue); // Release lock before execution
+            
+            self.execute_batch(pending).await;
+        } else if queue.timer.is_none() {
+            // Start batch delay timer
+            let batch_queue_clone = Arc::clone(&self.batch_queue);
+            let batch_load_fn_clone = Arc::clone(&self.batch_load_fn);
+            let cache_clone = Arc::clone(&self.cache);
+            let config_clone = self.config.clone();
+            let metrics_clone = Arc::clone(&self.metrics);
+            
+            let timer = tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_millis(config_clone.batch_delay_ms)).await;
+                
+                let mut queue = batch_queue_clone.lock().await;
+                let pending = std::mem::take(&mut queue.pending);
+                queue.timer = None;
+                drop(queue);
+                
+                if !pending.is_empty() {
+                    Self::execute_batch_static(
+                        pending, 
+                        batch_load_fn_clone, 
+                        cache_clone, 
+                        config_clone,
+                        metrics_clone
+                    ).await;
+                }
+            });
+            
+            queue.timer = Some(timer);
+            drop(queue);
+        } else {
+            drop(queue);
+        }
+        
+        // Wait for result
+        receiver.await.map_err(|_| {
+            // This would need to be properly handled based on your error type E
+            // For now, we'll need to implement a way to create a "receiver closed" error
+            panic!("DataLoader batch execution failed - receiver closed")
+        })?
+    }
+    
+    /// Load multiple values by keys
+    /// 
+    /// More efficient than calling load() multiple times as it can batch all requests together
+    pub async fn load_many(&self, keys: Vec<K>) -> Result<HashMap<K, V>, E> {
+        let mut results = HashMap::new();
+        let mut uncached_keys = Vec::new();
+        
+        // Check cache for each key
+        if self.config.cache_enabled {
+            let cache = self.cache.read().await;
+            for key in &keys {
+                if let Some(entry) = cache.get(key) {
+                    if !entry.is_expired() {
+                        results.insert(key.clone(), entry.value.clone());
+                        continue;
+                    }
+                }
+                uncached_keys.push(key.clone());
+            }
+        } else {
+            uncached_keys = keys;
+        }
+        
+        // Load uncached keys if any
+        if !uncached_keys.is_empty() {
+            let batch_results = self.batch_load_fn.load(uncached_keys.clone()).await?;
+            
+            // Update cache and results
+            if self.config.cache_enabled {
+                let mut cache = self.cache.write().await;
+                let ttl = self.config.cache_ttl_seconds.map(Duration::from_secs);
+                
+                for (key, value) in &batch_results {
+                    cache.insert(key.clone(), CacheEntry::new(value.clone(), ttl));
+                }
+            }
+            
+            results.extend(batch_results);
+        }
+        
+        Ok(results)
+    }
+    
+    /// Clear the cache
+    pub async fn clear_cache(&self) {
+        if self.config.cache_enabled {
+            let mut cache = self.cache.write().await;
+            cache.clear();
+        }
+    }
+    
+    /// Clear a specific key from the cache
+    pub async fn clear_key(&self, key: &K) {
+        if self.config.cache_enabled {
+            let mut cache = self.cache.write().await;
+            cache.remove(key);
+        }
+    }
+    
+    /// Get current metrics
+    pub async fn get_metrics(&self) -> DataLoaderMetrics {
+        self.metrics.read().await.clone()
+    }
+    
+    /// Execute a batch of pending requests
+    async fn execute_batch(&self, pending: Vec<BatchRequest<K, V, E>>) {
+        Self::execute_batch_static(
+            pending,
+            Arc::clone(&self.batch_load_fn),
+            Arc::clone(&self.cache),
+            self.config.clone(),
+            Arc::clone(&self.metrics),
+        ).await;
+    }
+    
+    /// Static version of execute_batch for use in async closures
+    async fn execute_batch_static(
+        pending: Vec<BatchRequest<K, V, E>>,
+        batch_load_fn: Arc<dyn BatchLoadFn<K, V, E>>,
+        cache: Arc<RwLock<HashMap<K, CacheEntry<V>>>>,
+        config: DataLoaderConfig,
+        metrics: Arc<RwLock<DataLoaderMetrics>>,
+    ) {
+        if pending.is_empty() {
+            return;
+        }
+        
+        // Deduplicate keys while preserving order and mapping back to requests
+        let mut unique_keys = Vec::new();
+        let mut seen_keys = HashMap::new(); // Use HashMap instead of HashSet for better compatibility
+        
+        for request in &pending {
+            if !seen_keys.contains_key(&request.key) {
+                seen_keys.insert(request.key.clone(), ());
+                unique_keys.push(request.key.clone());
+            }
+        }
+        
+        let batch_size = unique_keys.len(); // Use deduplicated size for metrics
+        
+        // Update metrics
+        if config.enable_metrics {
+            let mut metrics_guard = metrics.write().await;
+            metrics_guard.batches_executed += 1;
+            metrics_guard.total_keys_loaded += batch_size as u64;
+            metrics_guard.update_average_batch_size(batch_size);
+        }
+        
+        // Execute batch load with deduplicated keys
+        match batch_load_fn.load(unique_keys).await {
+            Ok(results) => {
+                // Update cache if enabled
+                if config.cache_enabled {
+                    let mut cache_guard = cache.write().await;
+                    let ttl = config.cache_ttl_seconds.map(Duration::from_secs);
+                    
+                    for (key, value) in &results {
+                        cache_guard.insert(key.clone(), CacheEntry::new(value.clone(), ttl));
+                    }
+                }
+                
+                // Send results to waiters (including duplicate requests)
+                for request in pending {
+                    let result = results.get(&request.key).cloned();
+                    let _ = request.sender.send(
+                        result.ok_or_else(|| {
+                            // This would need to be properly handled based on your error type E
+                            panic!("Key not found in batch result")
+                        })
+                    );
+                }
+            }
+            Err(error) => {
+                // Send error to all waiters
+                for request in pending {
+                    let _ = request.sender.send(Err(error.clone()));
+                }
+            }
+        }
+    }
+}
