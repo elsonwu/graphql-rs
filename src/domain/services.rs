@@ -4,9 +4,11 @@
 
 use crate::domain::{
     entities::{query::Query, schema::Schema},
-    value_objects::{ExecutionResult, GraphQLError, ValidationResult},
+    value_objects::{ExecutionResult, GraphQLError, ValidationResult, SubscriptionResult},
 };
 use async_trait::async_trait;
+use futures::Stream;
+use std::{pin::Pin, time::Duration};
 
 /// Service for validating GraphQL schemas
 pub struct SchemaValidator;
@@ -182,9 +184,22 @@ impl QueryExecutor {
                     .await
             },
             crate::infrastructure::query_parser::OperationType::Subscription => {
-                Err(crate::domain::value_objects::GraphQLError::new(
-                    "Subscriptions are not yet implemented".to_string(),
-                ))
+                match self.execute_subscription_operation(operation, schema, variables).await {
+                    Ok(subscription_result) => {
+                        if subscription_result.has_errors() {
+                            Err(subscription_result.errors.into_iter().next().unwrap_or_else(|| {
+                                GraphQLError::new("Unknown subscription error".to_string())
+                            }))
+                        } else {
+                            // For synchronous execution context, we'll return an error
+                            // In a real implementation, this would be handled by a WebSocket connection
+                            Err(GraphQLError::new(
+                                "Subscriptions require WebSocket connection".to_string()
+                            ).with_extension("code", serde_json::Value::String("SUBSCRIPTION_TRANSPORT_REQUIRED".to_string())))
+                        }
+                    }
+                    Err(error) => Err(error),
+                }
             },
         }
     }
@@ -336,6 +351,70 @@ impl QueryExecutor {
         }
 
         Ok(serde_json::Value::Object(result_map))
+    }
+
+    /// Execute a subscription operation 
+    /// Creates an async stream that yields results when data changes
+    async fn execute_subscription_operation(
+        &self,
+        operation: &crate::infrastructure::query_parser::OperationDefinition,
+        schema: &Schema,
+        _variables: &Option<serde_json::Value>,
+    ) -> Result<SubscriptionResult, GraphQLError> {
+        // Get the Subscription root type from the schema
+        let subscription_type_name = schema.subscription_type.as_ref().ok_or_else(|| {
+            GraphQLError::new("Schema does not define a Subscription type".to_string())
+        })?;
+
+        let subscription_type = schema.get_type(subscription_type_name).ok_or_else(|| {
+            GraphQLError::new(format!(
+                "Subscription type '{subscription_type_name}' not found in schema"
+            ))
+        })?;
+
+        // Validate that we have at least one field in the subscription
+        if operation.selection_set.selections.is_empty() {
+            return Ok(SubscriptionResult::with_error(
+                GraphQLError::new("Subscription must have at least one field".to_string())
+            ));
+        }
+
+        // For now, create a demo stream that emits periodic updates
+        // In a real implementation, this would connect to an event system
+        let stream = self.create_subscription_stream(
+            &operation.selection_set, 
+            subscription_type
+        ).await?;
+
+        Ok(SubscriptionResult::with_stream(stream))
+    }
+
+    /// Create a subscription stream for demonstration purposes
+    /// In production, this would integrate with a real event system
+    async fn create_subscription_stream(
+        &self,
+        _selection_set: &crate::infrastructure::query_parser::SelectionSet,
+        _subscription_type: &crate::domain::entities::types::GraphQLType,
+    ) -> Result<Pin<Box<dyn Stream<Item = ExecutionResult> + Send>>, GraphQLError> {
+        use futures::stream;
+        
+        // Create a demo stream that emits periodic updates
+        let demo_stream = stream::unfold(0u32, |counter| async move {
+            tokio::time::sleep(Duration::from_secs(2)).await;
+            
+            let data = serde_json::json!({
+                "messageAdded": {
+                    "id": format!("msg_{}", counter),
+                    "content": format!("Message #{}", counter),
+                    "timestamp": chrono::Utc::now().to_rfc3339()
+                }
+            });
+            
+            let result = ExecutionResult::success(data);
+            Some((result, counter + 1))
+        });
+        
+        Ok(Box::pin(demo_stream))
     }
 
     /// Execute a single mutation field with side effects

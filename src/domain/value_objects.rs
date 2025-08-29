@@ -758,3 +758,60 @@ pub type GraphQLResult<T> = Result<T, GraphQLError>;
 
 /// Result type for operations that can return multiple GraphQL errors
 pub type GraphQLMultiResult<T> = Result<T, Vec<GraphQLError>>;
+
+// ============================================================================
+// Subscription Support
+// ============================================================================
+
+use futures::Stream;
+use std::pin::Pin;
+
+/// Result of a GraphQL subscription execution, containing a stream of results
+pub struct SubscriptionResult {
+    /// Stream of execution results for the subscription
+    pub stream: Option<Pin<Box<dyn Stream<Item = ExecutionResult> + Send>>>,
+    /// Any initial errors that occurred during subscription setup
+    pub errors: Vec<GraphQLError>,
+}
+
+impl std::fmt::Debug for SubscriptionResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SubscriptionResult")
+            .field("has_stream", &self.stream.is_some())
+            .field("errors", &self.errors)
+            .finish()
+    }
+}
+
+impl SubscriptionResult {
+    /// Create a successful subscription result with a stream
+    pub fn with_stream(stream: Pin<Box<dyn Stream<Item = ExecutionResult> + Send>>) -> Self {
+        Self {
+            stream: Some(stream),
+            errors: Vec::new(),
+        }
+    }
+
+    /// Create a subscription result with errors (no stream)
+    pub fn with_errors(errors: Vec<GraphQLError>) -> Self {
+        Self {
+            stream: None,
+            errors,
+        }
+    }
+
+    /// Create a subscription result with a single error
+    pub fn with_error(error: GraphQLError) -> Self {
+        Self::with_errors(vec![error])
+    }
+
+    /// Check if the subscription has errors
+    pub fn has_errors(&self) -> bool {
+        !self.errors.is_empty()
+    }
+
+    /// Check if the subscription has a valid stream
+    pub fn has_stream(&self) -> bool {
+        self.stream.is_some()
+    }
+}
