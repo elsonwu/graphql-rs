@@ -4,7 +4,7 @@
 
 use crate::domain::{
     entities::{query::Query, schema::Schema},
-    value_objects::{ExecutionResult, GraphQLError, ValidationResult, SubscriptionResult},
+    value_objects::{ExecutionResult, GraphQLError, SubscriptionResult, ValidationResult},
 };
 use async_trait::async_trait;
 use futures::Stream;
@@ -184,20 +184,33 @@ impl QueryExecutor {
                     .await
             },
             crate::infrastructure::query_parser::OperationType::Subscription => {
-                match self.execute_subscription_operation(operation, schema, variables).await {
+                match self
+                    .execute_subscription_operation(operation, schema, variables)
+                    .await
+                {
                     Ok(subscription_result) => {
                         if subscription_result.has_errors() {
-                            Err(subscription_result.errors.into_iter().next().unwrap_or_else(|| {
-                                GraphQLError::new("Unknown subscription error".to_string())
-                            }))
+                            Err(subscription_result
+                                .errors
+                                .into_iter()
+                                .next()
+                                .unwrap_or_else(|| {
+                                    GraphQLError::new("Unknown subscription error".to_string())
+                                }))
                         } else {
                             // For synchronous execution context, we'll return an error
                             // In a real implementation, this would be handled by a WebSocket connection
                             Err(GraphQLError::new(
-                                "Subscriptions require WebSocket connection".to_string()
-                            ).with_extension("code", serde_json::Value::String("SUBSCRIPTION_TRANSPORT_REQUIRED".to_string())))
+                                "Subscriptions require WebSocket connection".to_string(),
+                            )
+                            .with_extension(
+                                "code",
+                                serde_json::Value::String(
+                                    "SUBSCRIPTION_TRANSPORT_REQUIRED".to_string(),
+                                ),
+                            ))
                         }
-                    }
+                    },
                     Err(error) => Err(error),
                 }
             },
@@ -353,7 +366,7 @@ impl QueryExecutor {
         Ok(serde_json::Value::Object(result_map))
     }
 
-    /// Execute a subscription operation 
+    /// Execute a subscription operation
     /// Creates an async stream that yields results when data changes
     async fn execute_subscription_operation(
         &self,
@@ -374,17 +387,16 @@ impl QueryExecutor {
 
         // Validate that we have at least one field in the subscription
         if operation.selection_set.selections.is_empty() {
-            return Ok(SubscriptionResult::with_error(
-                GraphQLError::new("Subscription must have at least one field".to_string())
-            ));
+            return Ok(SubscriptionResult::with_error(GraphQLError::new(
+                "Subscription must have at least one field".to_string(),
+            )));
         }
 
         // For now, create a demo stream that emits periodic updates
         // In a real implementation, this would connect to an event system
-        let stream = self.create_subscription_stream(
-            &operation.selection_set, 
-            subscription_type
-        ).await?;
+        let stream = self
+            .create_subscription_stream(&operation.selection_set, subscription_type)
+            .await?;
 
         Ok(SubscriptionResult::with_stream(stream))
     }
@@ -397,11 +409,11 @@ impl QueryExecutor {
         _subscription_type: &crate::domain::entities::types::GraphQLType,
     ) -> Result<Pin<Box<dyn Stream<Item = ExecutionResult> + Send>>, GraphQLError> {
         use futures::stream;
-        
+
         // Create a demo stream that emits periodic updates
         let demo_stream = stream::unfold(0u32, |counter| async move {
             tokio::time::sleep(Duration::from_secs(2)).await;
-            
+
             let data = serde_json::json!({
                 "messageAdded": {
                     "id": format!("msg_{}", counter),
@@ -409,11 +421,11 @@ impl QueryExecutor {
                     "timestamp": chrono::Utc::now().to_rfc3339()
                 }
             });
-            
+
             let result = ExecutionResult::success(data);
             Some((result, counter + 1))
         });
-        
+
         Ok(Box::pin(demo_stream))
     }
 
