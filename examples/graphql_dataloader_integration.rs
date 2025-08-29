@@ -1,20 +1,20 @@
+use async_trait::async_trait;
 use graphql_rs::domain::{
-    services::{QueryExecutor, DataLoaderContext, DataLoaderContextBuilder, QueryExecution},
     entities::{
-        query::Query, 
-        schema::Schema, 
-        types::{GraphQLType, ObjectType, FieldDefinition, ScalarType},
-        ids::{SchemaId, SchemaVersion}
+        ids::{SchemaId, SchemaVersion},
+        query::Query,
+        schema::Schema,
+        types::{FieldDefinition, GraphQLType, ObjectType, ScalarType},
     },
-    value_objects::{DataLoader, DataLoaderConfig, BatchLoadFn, ValidationResult}
+    services::{DataLoaderContext, DataLoaderContextBuilder, QueryExecution, QueryExecutor},
+    value_objects::{BatchLoadFn, DataLoader, DataLoaderConfig, ValidationResult},
 };
 use std::collections::HashMap;
 use std::sync::Arc;
-use async_trait::async_trait;
 use tokio::time::Duration;
 
 /// Example demonstrating GraphQL DataLoader integration
-/// 
+///
 /// This shows how to use DataLoaders within a GraphQL server context
 /// to efficiently resolve fields that require database access,
 /// solving the N+1 query problem in GraphQL field resolution.
@@ -58,24 +58,99 @@ impl Database {
         let mut categories = HashMap::new();
 
         // Create mock data
-        users.insert(1, User { id: 1, name: "Alice".to_string(), email: "alice@example.com".to_string() });
-        users.insert(2, User { id: 2, name: "Bob".to_string(), email: "bob@example.com".to_string() });
-        users.insert(3, User { id: 3, name: "Charlie".to_string(), email: "charlie@example.com".to_string() });
+        users.insert(
+            1,
+            User {
+                id: 1,
+                name: "Alice".to_string(),
+                email: "alice@example.com".to_string(),
+            },
+        );
+        users.insert(
+            2,
+            User {
+                id: 2,
+                name: "Bob".to_string(),
+                email: "bob@example.com".to_string(),
+            },
+        );
+        users.insert(
+            3,
+            User {
+                id: 3,
+                name: "Charlie".to_string(),
+                email: "charlie@example.com".to_string(),
+            },
+        );
 
-        categories.insert(1, Category { id: 1, name: "Technology".to_string(), description: "Tech posts".to_string() });
-        categories.insert(2, Category { id: 2, name: "Science".to_string(), description: "Science posts".to_string() });
+        categories.insert(
+            1,
+            Category {
+                id: 1,
+                name: "Technology".to_string(),
+                description: "Tech posts".to_string(),
+            },
+        );
+        categories.insert(
+            2,
+            Category {
+                id: 2,
+                name: "Science".to_string(),
+                description: "Science posts".to_string(),
+            },
+        );
 
-        posts.insert(1, Post { id: 1, title: "GraphQL Basics".to_string(), author_id: 1, category_id: 1 });
-        posts.insert(2, Post { id: 2, title: "Advanced DataLoaders".to_string(), author_id: 1, category_id: 1 });
-        posts.insert(3, Post { id: 3, title: "Rust Performance".to_string(), author_id: 2, category_id: 1 });
-        posts.insert(4, Post { id: 4, title: "Quantum Computing".to_string(), author_id: 3, category_id: 2 });
+        posts.insert(
+            1,
+            Post {
+                id: 1,
+                title: "GraphQL Basics".to_string(),
+                author_id: 1,
+                category_id: 1,
+            },
+        );
+        posts.insert(
+            2,
+            Post {
+                id: 2,
+                title: "Advanced DataLoaders".to_string(),
+                author_id: 1,
+                category_id: 1,
+            },
+        );
+        posts.insert(
+            3,
+            Post {
+                id: 3,
+                title: "Rust Performance".to_string(),
+                author_id: 2,
+                category_id: 1,
+            },
+        );
+        posts.insert(
+            4,
+            Post {
+                id: 4,
+                title: "Quantum Computing".to_string(),
+                author_id: 3,
+                category_id: 2,
+            },
+        );
 
-        Self { users, posts, categories }
+        Self {
+            users,
+            posts,
+            categories,
+        }
     }
 
     /// Batch load users by IDs
     async fn load_users(&self, user_ids: Vec<u32>) -> Result<HashMap<u32, User>, String> {
-        println!("🗃️  DATABASE: Batch loading {} users: {:?}", user_ids.len(), user_ids);
+        println!(
+            "🗃️  DATABASE: Batch loading {} users: {:?}",
+            user_ids.len(),
+            user_ids
+        );
         tokio::time::sleep(Duration::from_millis(20)).await;
 
         let mut results = HashMap::new();
@@ -88,8 +163,15 @@ impl Database {
     }
 
     /// Batch load categories by IDs
-    async fn load_categories(&self, category_ids: Vec<u32>) -> Result<HashMap<u32, Category>, String> {
-        println!("🗃️  DATABASE: Batch loading {} categories: {:?}", category_ids.len(), category_ids);
+    async fn load_categories(
+        &self,
+        category_ids: Vec<u32>,
+    ) -> Result<HashMap<u32, Category>, String> {
+        println!(
+            "🗃️  DATABASE: Batch loading {} categories: {:?}",
+            category_ids.len(),
+            category_ids
+        );
         tokio::time::sleep(Duration::from_millis(15)).await;
 
         let mut results = HashMap::new();
@@ -150,33 +232,45 @@ fn create_blog_schema() -> Schema {
     let mut types = HashMap::new();
 
     // Add scalar types
-    types.insert("String".to_string(), GraphQLType::Scalar(ScalarType::String));
+    types.insert(
+        "String".to_string(),
+        GraphQLType::Scalar(ScalarType::String),
+    );
     types.insert("Int".to_string(), GraphQLType::Scalar(ScalarType::Int));
     types.insert("ID".to_string(), GraphQLType::Scalar(ScalarType::ID));
 
     // User type
     let mut user_fields = HashMap::new();
-    user_fields.insert("id".to_string(), FieldDefinition {
-        name: "id".to_string(),
-        description: Some("User ID".to_string()),
-        field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::ID))),
-        arguments: HashMap::new(),
-        deprecation_reason: None,
-    });
-    user_fields.insert("name".to_string(), FieldDefinition {
-        name: "name".to_string(),
-        description: Some("User name".to_string()),
-        field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::String))),
-        arguments: HashMap::new(),
-        deprecation_reason: None,
-    });
-    user_fields.insert("email".to_string(), FieldDefinition {
-        name: "email".to_string(),
-        description: Some("User email".to_string()),
-        field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::String))),
-        arguments: HashMap::new(),
-        deprecation_reason: None,
-    });
+    user_fields.insert(
+        "id".to_string(),
+        FieldDefinition {
+            name: "id".to_string(),
+            description: Some("User ID".to_string()),
+            field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::ID))),
+            arguments: HashMap::new(),
+            deprecation_reason: None,
+        },
+    );
+    user_fields.insert(
+        "name".to_string(),
+        FieldDefinition {
+            name: "name".to_string(),
+            description: Some("User name".to_string()),
+            field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::String))),
+            arguments: HashMap::new(),
+            deprecation_reason: None,
+        },
+    );
+    user_fields.insert(
+        "email".to_string(),
+        FieldDefinition {
+            name: "email".to_string(),
+            description: Some("User email".to_string()),
+            field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::String))),
+            arguments: HashMap::new(),
+            deprecation_reason: None,
+        },
+    );
 
     let user_type = GraphQLType::Object(ObjectType {
         name: "User".to_string(),
@@ -188,27 +282,36 @@ fn create_blog_schema() -> Schema {
 
     // Category type
     let mut category_fields = HashMap::new();
-    category_fields.insert("id".to_string(), FieldDefinition {
-        name: "id".to_string(),
-        description: Some("Category ID".to_string()),
-        field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::ID))),
-        arguments: HashMap::new(),
-        deprecation_reason: None,
-    });
-    category_fields.insert("name".to_string(), FieldDefinition {
-        name: "name".to_string(),
-        description: Some("Category name".to_string()),
-        field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::String))),
-        arguments: HashMap::new(),
-        deprecation_reason: None,
-    });
-    category_fields.insert("description".to_string(), FieldDefinition {
-        name: "description".to_string(),
-        description: Some("Category description".to_string()),
-        field_type: GraphQLType::Scalar(ScalarType::String),
-        arguments: HashMap::new(),
-        deprecation_reason: None,
-    });
+    category_fields.insert(
+        "id".to_string(),
+        FieldDefinition {
+            name: "id".to_string(),
+            description: Some("Category ID".to_string()),
+            field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::ID))),
+            arguments: HashMap::new(),
+            deprecation_reason: None,
+        },
+    );
+    category_fields.insert(
+        "name".to_string(),
+        FieldDefinition {
+            name: "name".to_string(),
+            description: Some("Category name".to_string()),
+            field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::String))),
+            arguments: HashMap::new(),
+            deprecation_reason: None,
+        },
+    );
+    category_fields.insert(
+        "description".to_string(),
+        FieldDefinition {
+            name: "description".to_string(),
+            description: Some("Category description".to_string()),
+            field_type: GraphQLType::Scalar(ScalarType::String),
+            arguments: HashMap::new(),
+            deprecation_reason: None,
+        },
+    );
 
     let category_type = GraphQLType::Object(ObjectType {
         name: "Category".to_string(),
@@ -220,34 +323,46 @@ fn create_blog_schema() -> Schema {
 
     // Post type
     let mut post_fields = HashMap::new();
-    post_fields.insert("id".to_string(), FieldDefinition {
-        name: "id".to_string(),
-        description: Some("Post ID".to_string()),
-        field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::ID))),
-        arguments: HashMap::new(),
-        deprecation_reason: None,
-    });
-    post_fields.insert("title".to_string(), FieldDefinition {
-        name: "title".to_string(),
-        description: Some("Post title".to_string()),
-        field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::String))),
-        arguments: HashMap::new(),
-        deprecation_reason: None,
-    });
-    post_fields.insert("author".to_string(), FieldDefinition {
-        name: "author".to_string(),
-        description: Some("Post author (resolved via DataLoader)".to_string()),
-        field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::String))),
-        arguments: HashMap::new(),
-        deprecation_reason: None,
-    });
-    post_fields.insert("category".to_string(), FieldDefinition {
-        name: "category".to_string(),
-        description: Some("Post category (resolved via DataLoader)".to_string()),
-        field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::String))),
-        arguments: HashMap::new(),
-        deprecation_reason: None,
-    });
+    post_fields.insert(
+        "id".to_string(),
+        FieldDefinition {
+            name: "id".to_string(),
+            description: Some("Post ID".to_string()),
+            field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::ID))),
+            arguments: HashMap::new(),
+            deprecation_reason: None,
+        },
+    );
+    post_fields.insert(
+        "title".to_string(),
+        FieldDefinition {
+            name: "title".to_string(),
+            description: Some("Post title".to_string()),
+            field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::String))),
+            arguments: HashMap::new(),
+            deprecation_reason: None,
+        },
+    );
+    post_fields.insert(
+        "author".to_string(),
+        FieldDefinition {
+            name: "author".to_string(),
+            description: Some("Post author (resolved via DataLoader)".to_string()),
+            field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::String))),
+            arguments: HashMap::new(),
+            deprecation_reason: None,
+        },
+    );
+    post_fields.insert(
+        "category".to_string(),
+        FieldDefinition {
+            name: "category".to_string(),
+            description: Some("Post category (resolved via DataLoader)".to_string()),
+            field_type: GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::String))),
+            arguments: HashMap::new(),
+            deprecation_reason: None,
+        },
+    );
 
     let post_type = GraphQLType::Object(ObjectType {
         name: "Post".to_string(),
@@ -259,17 +374,18 @@ fn create_blog_schema() -> Schema {
 
     // Query type
     let mut query_fields = HashMap::new();
-    query_fields.insert("posts".to_string(), FieldDefinition {
-        name: "posts".to_string(),
-        description: Some("Get all blog posts".to_string()),
-        field_type: GraphQLType::NonNull(Box::new(
-            GraphQLType::List(Box::new(GraphQLType::NonNull(Box::new(
-                GraphQLType::Scalar(ScalarType::String)
-            ))))
-        )),
-        arguments: HashMap::new(),
-        deprecation_reason: None,
-    });
+    query_fields.insert(
+        "posts".to_string(),
+        FieldDefinition {
+            name: "posts".to_string(),
+            description: Some("Get all blog posts".to_string()),
+            field_type: GraphQLType::NonNull(Box::new(GraphQLType::List(Box::new(
+                GraphQLType::NonNull(Box::new(GraphQLType::Scalar(ScalarType::String))),
+            )))),
+            arguments: HashMap::new(),
+            deprecation_reason: None,
+        },
+    );
 
     let query_type = GraphQLType::Object(ObjectType {
         name: "Query".to_string(),
@@ -294,10 +410,10 @@ fn create_blog_schema() -> Schema {
 /// Simulate GraphQL field resolution with DataLoaders
 async fn simulate_graphql_execution_with_dataloaders(
     database: Arc<Database>,
-    dataloader_context: Arc<DataLoaderContext>
+    dataloader_context: Arc<DataLoaderContext>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 Simulating GraphQL query execution with DataLoaders...");
-    
+
     // Simulate loading posts (like GraphQL posts field resolution)
     let posts = database.load_all_posts().await?;
     println!("📄 Loaded {} posts", posts.len());
@@ -308,7 +424,7 @@ async fn simulate_graphql_execution_with_dataloaders(
     let user_loader: &DataLoader<u32, User, String> = dataloader_context
         .get_dataloader("User")
         .expect("User DataLoader should be registered");
-    
+
     let category_loader: &DataLoader<u32, Category, String> = dataloader_context
         .get_dataloader("Category")
         .expect("Category DataLoader should be registered");
@@ -323,13 +439,10 @@ async fn simulate_graphql_execution_with_dataloaders(
 
         // In a real GraphQL resolver, these would be separate field resolvers
         // running concurrently. Here we simulate that behavior.
-        let author_future = tokio::spawn(async move {
-            user_loader_clone.load(author_id).await
-        });
-        
-        let category_future = tokio::spawn(async move {
-            category_loader_clone.load(category_id).await
-        });
+        let author_future = tokio::spawn(async move { user_loader_clone.load(author_id).await });
+
+        let category_future =
+            tokio::spawn(async move { category_loader_clone.load(category_id).await });
 
         let (author_result, category_result) = tokio::join!(author_future, category_future);
         let author = author_result??;
@@ -337,7 +450,10 @@ async fn simulate_graphql_execution_with_dataloaders(
 
         println!("  📝 Post: {}", post_title);
         println!("    👤 Author: {} ({})", author.name, author.email);
-        println!("    📂 Category: {} - {}", category.name, category.description);
+        println!(
+            "    📂 Category: {} - {}",
+            category.name, category.description
+        );
     }
 
     // Display DataLoader metrics
@@ -350,14 +466,23 @@ async fn simulate_graphql_execution_with_dataloaders(
     println!("  🎯 Cache hits: {}", user_metrics.cache_hits);
     println!("  ❌ Cache misses: {}", user_metrics.cache_misses);
     println!("  📦 Batches executed: {}", user_metrics.batches_executed);
-    println!("  📊 Cache hit ratio: {:.2}%", user_metrics.cache_hit_ratio() * 100.0);
+    println!(
+        "  📊 Cache hit ratio: {:.2}%",
+        user_metrics.cache_hit_ratio() * 100.0
+    );
 
     println!("\n📂 Category DataLoader:");
     println!("  📈 Total requests: {}", category_metrics.total_requests);
     println!("  🎯 Cache hits: {}", category_metrics.cache_hits);
     println!("  ❌ Cache misses: {}", category_metrics.cache_misses);
-    println!("  📦 Batches executed: {}", category_metrics.batches_executed);
-    println!("  📊 Cache hit ratio: {:.2}%", category_metrics.cache_hit_ratio() * 100.0);
+    println!(
+        "  📦 Batches executed: {}",
+        category_metrics.batches_executed
+    );
+    println!(
+        "  📊 Cache hit ratio: {:.2}%",
+        category_metrics.cache_hit_ratio() * 100.0
+    );
 
     Ok(())
 }
@@ -365,17 +490,17 @@ async fn simulate_graphql_execution_with_dataloaders(
 /// Demonstrate GraphQL query execution (simplified)
 async fn demonstrate_graphql_query_execution() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n🔍 === GRAPHQL QUERY EXECUTION ===");
-    
+
     let schema = create_blog_schema();
     let executor = QueryExecutor::new();
-    
+
     // Create a simple GraphQL query
     let mut query = Query::new("query { posts { id title } }".to_string());
     query.mark_validated(ValidationResult::Valid);
-    
+
     println!("🔄 Executing GraphQL query: {}", query.query_string());
     let result = executor.execute(&query, &schema).await;
-    
+
     if result.errors.is_empty() {
         println!("✅ Query executed successfully");
         if let Some(data) = result.data {
@@ -419,12 +544,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let user_loader = DataLoader::with_config(
         Arc::new(UserLoader::new(Arc::clone(&database))),
-        user_config
+        user_config,
     );
 
     let category_loader = DataLoader::with_config(
         Arc::new(CategoryLoader::new(Arc::clone(&database))),
-        category_config
+        category_config,
     );
 
     // Create DataLoader context
@@ -432,14 +557,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         DataLoaderContextBuilder::new()
             .with_dataloader("User", user_loader)
             .with_dataloader("Category", category_loader)
-            .build()
+            .build(),
     );
 
     // Demonstrate GraphQL field resolution with DataLoaders
     simulate_graphql_execution_with_dataloaders(
-        Arc::clone(&database), 
-        Arc::clone(&dataloader_context)
-    ).await?;
+        Arc::clone(&database),
+        Arc::clone(&dataloader_context),
+    )
+    .await?;
 
     // Demonstrate basic GraphQL query execution
     demonstrate_graphql_query_execution().await?;
@@ -464,13 +590,13 @@ mod tests {
     #[tokio::test]
     async fn test_database_operations() {
         let db = Database::new();
-        
+
         let users = db.load_users(vec![1, 2]).await.unwrap();
         assert_eq!(users.len(), 2);
-        
+
         let categories = db.load_categories(vec![1]).await.unwrap();
         assert_eq!(categories.len(), 1);
-        
+
         let posts = db.load_all_posts().await.unwrap();
         assert_eq!(posts.len(), 4);
     }
@@ -479,11 +605,11 @@ mod tests {
     async fn test_dataloader_context() {
         let db = Arc::new(Database::new());
         let user_loader = DataLoader::new(Arc::new(UserLoader::new(db)));
-        
+
         let mut context = DataLoaderContext::new();
         context.register_dataloader("User", user_loader);
-        
-        let retrieved_loader: Option<&DataLoader<u32, User, String>> = 
+
+        let retrieved_loader: Option<&DataLoader<u32, User, String>> =
             context.get_dataloader("User");
         assert!(retrieved_loader.is_some());
     }
@@ -493,17 +619,16 @@ mod tests {
         let db = Arc::new(Database::new());
         let user_loader = DataLoader::new(Arc::new(UserLoader::new(Arc::clone(&db))));
         let category_loader = DataLoader::new(Arc::new(CategoryLoader::new(db)));
-        
+
         let context = DataLoaderContextBuilder::new()
             .with_dataloader("User", user_loader)
             .with_dataloader("Category", category_loader)
             .build();
-        
-        let user_loader: Option<&DataLoader<u32, User, String>> = 
-            context.get_dataloader("User");
-        let category_loader: Option<&DataLoader<u32, Category, String>> = 
+
+        let user_loader: Option<&DataLoader<u32, User, String>> = context.get_dataloader("User");
+        let category_loader: Option<&DataLoader<u32, Category, String>> =
             context.get_dataloader("Category");
-            
+
         assert!(user_loader.is_some());
         assert!(category_loader.is_some());
     }
@@ -511,7 +636,7 @@ mod tests {
     #[test]
     fn test_blog_schema_creation() {
         let schema = create_blog_schema();
-        
+
         assert_eq!(schema.query_type, "Query");
         assert!(schema.mutation_type.is_none());
         assert!(schema.subscription_type.is_none());

@@ -1,11 +1,11 @@
-use graphql_rs::domain::value_objects::{DataLoader, DataLoaderConfig, BatchLoadFn};
+use async_trait::async_trait;
+use graphql_rs::domain::value_objects::{BatchLoadFn, DataLoader, DataLoaderConfig};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use async_trait::async_trait;
 
 /// Example demonstrating the DataLoader pattern for solving N+1 query problems
-/// 
+///
 /// This example simulates a GraphQL server that needs to load user data
 /// for multiple posts, demonstrating how DataLoader batches requests
 /// and caches results to improve performance.
@@ -40,18 +40,98 @@ impl Database {
         let mut posts = HashMap::new();
 
         // Create mock users
-        users.insert(1, User { id: 1, name: "Alice Johnson".to_string(), email: "alice@example.com".to_string(), department: "Engineering".to_string() });
-        users.insert(2, User { id: 2, name: "Bob Smith".to_string(), email: "bob@example.com".to_string(), department: "Product".to_string() });
-        users.insert(3, User { id: 3, name: "Charlie Brown".to_string(), email: "charlie@example.com".to_string(), department: "Design".to_string() });
-        users.insert(4, User { id: 4, name: "Diana Prince".to_string(), email: "diana@example.com".to_string(), department: "Marketing".to_string() });
+        users.insert(
+            1,
+            User {
+                id: 1,
+                name: "Alice Johnson".to_string(),
+                email: "alice@example.com".to_string(),
+                department: "Engineering".to_string(),
+            },
+        );
+        users.insert(
+            2,
+            User {
+                id: 2,
+                name: "Bob Smith".to_string(),
+                email: "bob@example.com".to_string(),
+                department: "Product".to_string(),
+            },
+        );
+        users.insert(
+            3,
+            User {
+                id: 3,
+                name: "Charlie Brown".to_string(),
+                email: "charlie@example.com".to_string(),
+                department: "Design".to_string(),
+            },
+        );
+        users.insert(
+            4,
+            User {
+                id: 4,
+                name: "Diana Prince".to_string(),
+                email: "diana@example.com".to_string(),
+                department: "Marketing".to_string(),
+            },
+        );
 
         // Create mock posts
-        posts.insert(1, Post { id: 1, title: "Getting Started with GraphQL".to_string(), content: "GraphQL is a query language...".to_string(), author_id: 1 });
-        posts.insert(2, Post { id: 2, title: "Advanced Rust Patterns".to_string(), content: "Rust provides powerful...".to_string(), author_id: 2 });
-        posts.insert(3, Post { id: 3, title: "DataLoader Best Practices".to_string(), content: "DataLoader solves the N+1...".to_string(), author_id: 1 });
-        posts.insert(4, Post { id: 4, title: "Building Scalable APIs".to_string(), content: "When building APIs...".to_string(), author_id: 3 });
-        posts.insert(5, Post { id: 5, title: "Database Optimization Tips".to_string(), content: "Database performance...".to_string(), author_id: 1 });
-        posts.insert(6, Post { id: 6, title: "UI/UX Design Principles".to_string(), content: "Good design starts...".to_string(), author_id: 3 });
+        posts.insert(
+            1,
+            Post {
+                id: 1,
+                title: "Getting Started with GraphQL".to_string(),
+                content: "GraphQL is a query language...".to_string(),
+                author_id: 1,
+            },
+        );
+        posts.insert(
+            2,
+            Post {
+                id: 2,
+                title: "Advanced Rust Patterns".to_string(),
+                content: "Rust provides powerful...".to_string(),
+                author_id: 2,
+            },
+        );
+        posts.insert(
+            3,
+            Post {
+                id: 3,
+                title: "DataLoader Best Practices".to_string(),
+                content: "DataLoader solves the N+1...".to_string(),
+                author_id: 1,
+            },
+        );
+        posts.insert(
+            4,
+            Post {
+                id: 4,
+                title: "Building Scalable APIs".to_string(),
+                content: "When building APIs...".to_string(),
+                author_id: 3,
+            },
+        );
+        posts.insert(
+            5,
+            Post {
+                id: 5,
+                title: "Database Optimization Tips".to_string(),
+                content: "Database performance...".to_string(),
+                author_id: 1,
+            },
+        );
+        posts.insert(
+            6,
+            Post {
+                id: 6,
+                title: "UI/UX Design Principles".to_string(),
+                content: "Good design starts...".to_string(),
+                author_id: 3,
+            },
+        );
 
         Self { users, posts }
     }
@@ -66,8 +146,11 @@ impl Database {
 
     /// Simulate fetching users by IDs in batch (this would be a database query in real life)
     async fn fetch_users_by_ids(&self, user_ids: Vec<u32>) -> Result<HashMap<u32, User>, String> {
-        println!("🗃️  DATABASE: SELECT * FROM users WHERE id IN ({:?}) -- BATCHED QUERY", user_ids);
-        
+        println!(
+            "🗃️  DATABASE: SELECT * FROM users WHERE id IN ({:?}) -- BATCHED QUERY",
+            user_ids
+        );
+
         // Simulate database delay
         tokio::time::sleep(Duration::from_millis(30)).await;
 
@@ -77,7 +160,7 @@ impl Database {
                 results.insert(id, user.clone());
             }
         }
-        
+
         Ok(results)
     }
 }
@@ -103,7 +186,7 @@ impl BatchLoadFn<u32, User, String> for UserLoader {
 /// Simulate GraphQL field resolution without DataLoader (demonstrating N+1 problem)
 async fn resolve_posts_without_dataloader(database: Arc<Database>) {
     println!("\n🚨 === RESOLVING POSTS WITHOUT DATALOADER (N+1 Problem) ===");
-    
+
     let posts = database.fetch_posts().await;
     println!("📄 Loaded {} posts", posts.len());
 
@@ -111,20 +194,26 @@ async fn resolve_posts_without_dataloader(database: Arc<Database>) {
     for post in &posts {
         println!("  📝 Post: {}", post.title);
         // This creates the N+1 problem - one query per post's author
-        let users = database.fetch_users_by_ids(vec![post.author_id]).await.unwrap();
+        let users = database
+            .fetch_users_by_ids(vec![post.author_id])
+            .await
+            .unwrap();
         if let Some(author) = users.get(&post.author_id) {
             println!("    👤 Author: {} ({})", author.name, author.department);
         }
     }
 
-    println!("\n🔥 PROBLEM: {} database queries executed (1 for posts + {} for authors)", 
-        1 + posts.len(), posts.len());
+    println!(
+        "\n🔥 PROBLEM: {} database queries executed (1 for posts + {} for authors)",
+        1 + posts.len(),
+        posts.len()
+    );
 }
 
 /// Simulate GraphQL field resolution with DataLoader (solving N+1 problem)
 async fn resolve_posts_with_dataloader(database: Arc<Database>) {
     println!("\n✅ === RESOLVING POSTS WITH DATALOADER (Problem Solved) ===");
-    
+
     // Create DataLoader with custom configuration
     let user_loader = UserLoader::new(Arc::clone(&database));
     let config = DataLoaderConfig {
@@ -140,18 +229,21 @@ async fn resolve_posts_with_dataloader(database: Arc<Database>) {
     println!("📄 Loaded {} posts", posts.len());
 
     println!("\n📋 Resolving author for each post:");
-    
+
     // Simulate concurrent field resolution (like what happens in GraphQL)
-    let author_futures: Vec<_> = posts.iter().map(|post| {
-        let dl = Arc::clone(&dataloader);
-        let post_title = post.title.clone();
-        let author_id = post.author_id;
-        
-        tokio::spawn(async move {
-            let author = dl.load(author_id).await.unwrap();
-            (post_title, author)
+    let author_futures: Vec<_> = posts
+        .iter()
+        .map(|post| {
+            let dl = Arc::clone(&dataloader);
+            let post_title = post.title.clone();
+            let author_id = post.author_id;
+
+            tokio::spawn(async move {
+                let author = dl.load(author_id).await.unwrap();
+                (post_title, author)
+            })
         })
-    }).collect();
+        .collect();
 
     // Wait for all author resolutions
     let results = futures::future::try_join_all(author_futures).await.unwrap();
@@ -170,11 +262,17 @@ async fn resolve_posts_with_dataloader(database: Arc<Database>) {
     println!("  ❌ Cache misses: {}", metrics.cache_misses);
     println!("  📦 Batches executed: {}", metrics.batches_executed);
     println!("  🔑 Total keys loaded: {}", metrics.total_keys_loaded);
-    println!("  📊 Cache hit ratio: {:.2}%", metrics.cache_hit_ratio() * 100.0);
+    println!(
+        "  📊 Cache hit ratio: {:.2}%",
+        metrics.cache_hit_ratio() * 100.0
+    );
     println!("  📏 Average batch size: {:.1}", metrics.average_batch_size);
 
-    println!("\n✨ SOLUTION: Only {} database queries executed (1 for posts + {} batched for authors)", 
-        1 + metrics.batches_executed, metrics.batches_executed);
+    println!(
+        "\n✨ SOLUTION: Only {} database queries executed (1 for posts + {} batched for authors)",
+        1 + metrics.batches_executed,
+        metrics.batches_executed
+    );
 }
 
 /// Demonstrate cache benefits with repeated requests
@@ -201,7 +299,10 @@ async fn demonstrate_caching_benefits(database: Arc<Database>) {
     println!("  📈 Total requests: {}", metrics.total_requests);
     println!("  🎯 Cache hits: {}", metrics.cache_hits);
     println!("  ❌ Cache misses: {}", metrics.cache_misses);
-    println!("  🔄 Cache hit ratio: {:.2}%", metrics.cache_hit_ratio() * 100.0);
+    println!(
+        "  🔄 Cache hit ratio: {:.2}%",
+        metrics.cache_hit_ratio() * 100.0
+    );
 }
 
 /// Demonstrate manual cache management
@@ -227,8 +328,10 @@ async fn demonstrate_cache_management(database: Arc<Database>) {
 
     // Show final metrics
     let metrics = dataloader.get_metrics().await;
-    println!("📊 Final metrics - Cache hits: {}, misses: {}", 
-        metrics.cache_hits, metrics.cache_misses);
+    println!(
+        "📊 Final metrics - Cache hits: {}, misses: {}",
+        metrics.cache_hits, metrics.cache_misses
+    );
 }
 
 #[tokio::main]
@@ -253,7 +356,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     demonstrate_cache_management(Arc::clone(&database)).await;
 
     println!("\n🎯 === KEY TAKEAWAYS ===");
-    println!("1. 🔥 Without DataLoader: {} queries (1 + N pattern)", 6 + 1);
+    println!(
+        "1. 🔥 Without DataLoader: {} queries (1 + N pattern)",
+        6 + 1
+    );
     println!("2. ✅ With DataLoader: ~2-3 queries (1 + batched)");
     println!("3. 🚀 Performance improvement: ~70% fewer database queries");
     println!("4. 💾 Caching eliminates redundant requests within execution context");
@@ -270,7 +376,7 @@ mod tests {
     #[tokio::test]
     async fn test_database_operations() {
         let db = Database::new();
-        
+
         // Test fetching posts
         let posts = db.fetch_posts().await;
         assert_eq!(posts.len(), 6);
@@ -287,7 +393,7 @@ mod tests {
     async fn test_user_loader() {
         let db = Arc::new(Database::new());
         let loader = UserLoader::new(db);
-        
+
         let users = loader.load(vec![1, 2]).await.unwrap();
         assert_eq!(users.len(), 2);
         assert_eq!(users.get(&1).unwrap().name, "Alice Johnson");

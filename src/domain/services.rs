@@ -4,7 +4,9 @@
 
 use crate::domain::{
     entities::{query::Query, schema::Schema},
-    value_objects::{ExecutionResult, GraphQLError, SubscriptionResult, ValidationResult, DataLoader},
+    value_objects::{
+        DataLoader, ExecutionResult, GraphQLError, SubscriptionResult, ValidationResult,
+    },
 };
 use async_trait::async_trait;
 use futures::Stream;
@@ -872,7 +874,7 @@ use std::hash::Hash;
 use std::sync::Arc;
 
 /// DataLoader context service for GraphQL field resolvers
-/// 
+///
 /// Provides a centralized way to manage DataLoaders across GraphQL execution,
 /// allowing field resolvers to access pre-configured DataLoaders for different
 /// entity types while maintaining performance optimizations.
@@ -890,19 +892,14 @@ impl DataLoaderContext {
     }
 
     /// Register a DataLoader for a specific type
-    pub fn register_dataloader<K, V, E>(
-        &mut self,
-        type_name: &str,
-        dataloader: DataLoader<K, V, E>,
-    ) where
+    pub fn register_dataloader<K, V, E>(&mut self, type_name: &str, dataloader: DataLoader<K, V, E>)
+    where
         K: Clone + Hash + Eq + Send + Sync + 'static,
         V: Clone + Send + Sync + 'static,
         E: Clone + Send + Sync + 'static,
     {
-        self.dataloaders.insert(
-            type_name.to_string(),
-            Box::new(dataloader),
-        );
+        self.dataloaders
+            .insert(type_name.to_string(), Box::new(dataloader));
     }
 
     /// Get a DataLoader for a specific type
