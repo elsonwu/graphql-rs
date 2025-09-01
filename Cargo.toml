@@ -27,7 +27,7 @@ anyhow = "1.0"
 
 # Parsing and lexing
 nom = "7.1"
-logos = "0.13"
+logos = "0.15"
 
 # Collections
 indexmap = { version = "2.0", features = ["serde"] }
